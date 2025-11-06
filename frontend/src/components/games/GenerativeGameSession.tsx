@@ -1,0 +1,321 @@
+import { useState, useEffect } from 'react'
+import { ArrowLeft, Sparkles, RefreshCw, Lightbulb } from 'lucide-react'
+import { toast } from 'sonner'
+
+interface GenerativeGameSessionProps {
+  onBack: () => void
+}
+
+export function GenerativeGameSession({ onBack }: GenerativeGameSessionProps) {
+  const [questions, setQuestions] = useState<any[]>([])
+  const [currentQuestion, setCurrentQuestion] = useState(0)
+  const [responses, setResponses] = useState<Record<string, string>>({})
+  const [loading, setLoading] = useState(true)
+  const [generating, setGenerating] = useState(false)
+  const [gamePhase, setGamePhase] = useState<'playing' | 'completed'>('playing')
+  const [followUpQuestions, setFollowUpQuestions] = useState<any[]>([])
+
+  useEffect(() => {
+    generateInitialQuestions()
+  }, [])
+
+  const generateInitialQuestions = async () => {
+    setLoading(true)
+    try {
+      const response = await fetch('http://localhost:8000/questions/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: 'user_123',
+          partner_id: 'partner_123',
+          count: 5
+        })
+      })
+      
+      const data = await response.json()
+      setQuestions(data.questions)
+      toast.success(`Generated ${data.questions.length} personalized questions!`)
+    } catch (error) {
+      toast.error('Failed to generate questions')
+      onBack()
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const generateMoreQuestions = async () => {
+    setGenerating(true)
+    try {
+      const response = await fetch('http://localhost:8000/questions/adaptive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: 'user_123',
+          partner_id: 'partner_123',
+          count: 3
+        })
+      })
+      
+      const data = await response.json()
+      setQuestions([...questions, ...data.questions])
+      toast.success(`Generated ${data.questions.length} more questions based on your preferences!`)
+    } catch (error) {
+      toast.error('Failed to generate more questions')
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  const generateFollowUps = async () => {
+    if (Object.keys(responses).length === 0) return
+
+    setGenerating(true)
+    try {
+      const previousAnswers = Object.entries(responses).map(([questionId, answer]) => ({
+        question: questions.find(q => q.id === questionId),
+        answer
+      }))
+
+      const response = await fetch('http://localhost:8000/questions/follow-up', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          previous_answers: previousAnswers,
+          count: 3
+        })
+      })
+      
+      const data = await response.json()
+      setFollowUpQuestions(data.questions)
+      toast.success(`Generated ${data.questions.length} follow-up questions based on your answers!`)
+    } catch (error) {
+      toast.error('Failed to generate follow-up questions')
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  const submitAnswer = (answer: string) => {
+    const questionId = questions[currentQuestion].id
+    setResponses({ ...responses, [questionId]: answer })
+
+    if (currentQuestion < questions.length - 1) {
+      setCurrentQuestion(currentQuestion + 1)
+    } else {
+      setGamePhase('completed')
+      generateFollowUps()
+    }
+  }
+
+  const restartWithNewQuestions = () => {
+    setQuestions([])
+    setCurrentQuestion(0)
+    setResponses({})
+    setFollowUpQuestions([])
+    setGamePhase('playing')
+    generateInitialQuestions()
+  }
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-8">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">AI is generating personalized questions...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (gamePhase === 'completed') {
+    return (
+      <div className="max-w-2xl mx-auto space-y-6">
+        <div className="flex items-center justify-between mb-6">
+          <button onClick={onBack} className="flex items-center gap-2 text-gray-600 hover:text-gray-800">
+            <ArrowLeft className="w-5 h-5" />
+            Back
+          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={generateFollowUps}
+              disabled={generating}
+              className="flex items-center gap-2 bg-blue-500 text-white px-4 py-2 rounded-xl hover:bg-blue-600 transition-colors disabled:opacity-50"
+            >
+              <Lightbulb className="w-4 h-4" />
+              {generating ? 'Generating...' : 'More Follow-ups'}
+            </button>
+            <button
+              onClick={restartWithNewQuestions}
+              className="flex items-center gap-2 bg-purple-500 text-white px-4 py-2 rounded-xl hover:bg-purple-600 transition-colors"
+            >
+              <RefreshCw className="w-4 h-4" />
+              New Questions
+            </button>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-3xl p-8 shadow-xl text-center">
+          <Sparkles className="w-16 h-16 text-purple-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Session Complete!</h2>
+          <p className="text-gray-600 mb-6">
+            You've answered {Object.keys(responses).length} AI-generated questions. 
+            The system is learning from your responses to create even better questions next time!
+          </p>
+        </div>
+
+        {/* Your Responses */}
+        <div className="bg-white rounded-3xl p-8 shadow-xl">
+          <h3 className="text-xl font-bold text-gray-800 mb-6">Your Responses</h3>
+          <div className="space-y-4">
+            {questions.map((question, index) => {
+              const response = responses[question.id]
+              if (!response) return null
+              
+              return (
+                <div key={question.id} className="border border-gray-200 rounded-2xl p-4">
+                  <div className="text-sm text-gray-500 mb-2">
+                    Question {index + 1} • {question.category}
+                  </div>
+                  <div className="font-medium text-gray-800 mb-2">{question.text}</div>
+                  <div className="bg-purple-50 rounded-lg p-3">
+                    <div className="text-purple-700">{response}</div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Follow-up Questions */}
+        {followUpQuestions.length > 0 && (
+          <div className="bg-white rounded-3xl p-8 shadow-xl">
+            <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+              <Lightbulb className="w-6 h-6 text-yellow-500" />
+              AI-Generated Follow-ups
+            </h3>
+            <div className="space-y-4">
+              {followUpQuestions.map((question, index) => (
+                <div key={question.id} className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4">
+                  <div className="text-sm text-yellow-600 mb-2">Follow-up Question {index + 1}</div>
+                  <div className="font-medium text-gray-800">{question.text}</div>
+                  <textarea
+                    placeholder="Your answer..."
+                    className="w-full mt-3 p-3 border border-gray-200 rounded-lg focus:border-yellow-500 focus:outline-none resize-none"
+                    rows={2}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const question = questions[currentQuestion]
+  if (!question) return null
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-6">
+      <div className="flex items-center justify-between mb-6">
+        <button onClick={onBack} className="flex items-center gap-2 text-gray-600 hover:text-gray-800">
+          <ArrowLeft className="w-5 h-5" />
+          Back
+        </button>
+        <div className="flex items-center gap-4">
+          <div className="text-sm text-gray-500">
+            Question {currentQuestion + 1} of {questions.length}
+          </div>
+          <button
+            onClick={generateMoreQuestions}
+            disabled={generating}
+            className="flex items-center gap-2 bg-purple-500 text-white px-3 py-1 rounded-lg hover:bg-purple-600 transition-colors disabled:opacity-50 text-sm"
+          >
+            <Sparkles className="w-3 h-3" />
+            {generating ? 'Generating...' : 'More Questions'}
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-3xl p-8 shadow-xl">
+        <div className="mb-6">
+          <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
+            <div
+              className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all"
+              style={{ width: `${((currentQuestion + 1) / questions.length) * 100}%` }}
+            />
+          </div>
+        </div>
+
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <Sparkles className="w-5 h-5 text-purple-500" />
+            <span className="text-sm font-medium text-purple-600">AI-Generated Question</span>
+          </div>
+          <h3 className="text-2xl font-bold text-gray-800 mb-4">{question.text}</h3>
+          <div className="flex items-center justify-center gap-2">
+            <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium">
+              {question.category}
+            </span>
+            <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
+              {question.difficulty}
+            </span>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          {question.type === 'this_or_that' && question.options?.map((option: string, index: number) => (
+            <button
+              key={index}
+              onClick={() => submitAnswer(option)}
+              className="w-full p-4 text-left bg-gray-50 hover:bg-purple-50 rounded-xl border border-gray-200 hover:border-purple-300 transition-all"
+            >
+              {option}
+            </button>
+          ))}
+
+          {question.type === 'open_ended' && (
+            <div className="space-y-4">
+              <textarea
+                placeholder="Share your thoughts..."
+                className="w-full p-4 border border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none resize-none"
+                rows={4}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    const target = e.target as HTMLTextAreaElement
+                    if (target.value.trim()) {
+                      submitAnswer(target.value.trim())
+                    }
+                  }
+                }}
+              />
+              <button
+                onClick={(e) => {
+                  const textarea = e.currentTarget.parentElement?.querySelector('textarea') as HTMLTextAreaElement
+                  if (textarea?.value.trim()) {
+                    submitAnswer(textarea.value.trim())
+                  }
+                }}
+                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-3 px-6 rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all"
+              >
+                Submit Answer
+              </button>
+            </div>
+          )}
+        </div>
+
+        {question.generated && (
+          <div className="mt-6 bg-purple-50 rounded-2xl p-4">
+            <div className="flex items-center gap-2 text-purple-700">
+              <Sparkles className="w-4 h-4" />
+              <span className="text-sm font-medium">
+                This question was generated specifically for you based on your relationship patterns and preferences.
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
