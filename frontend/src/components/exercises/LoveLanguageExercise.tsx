@@ -11,6 +11,8 @@ export function LoveLanguageExercise({ onBack }: LoveLanguageExerciseProps) {
   const [currentStep, setCurrentStep] = useState(0)
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [results, setResults] = useState<any>(null)
+  const [partnerResults, setPartnerResults] = useState<any>(null)
+  const [bothCompleted, setBothCompleted] = useState(false)
   const [loading, setLoading] = useState(false)
 
   const questions = [
@@ -84,11 +86,20 @@ export function LoveLanguageExercise({ onBack }: LoveLanguageExerciseProps) {
         recommendations: getRecommendations(topLanguage)
       }
 
-      // Save to backend
-      await api.submitExerciseResult('love_language', result)
+      // Save to couple activities system
+      await api.submitCoupleActivity('exercise', 'love_language', result)
+      
+      // Check for partner's results
+      const coupleResults = await api.getCoupleActivityResults('exercise', 'love_language')
+      if (coupleResults.bothCompleted && coupleResults.results) {
+        setPartnerResults(coupleResults.results.partner.response)
+        setBothCompleted(true)
+        toast.success('Assessment complete! Your partner has results too!')
+      } else {
+        toast.success('Love language assessment complete!')
+      }
       
       setResults(result)
-      toast.success('Love language assessment complete!')
     } catch (error) {
       toast.error('Failed to save results')
     } finally {
@@ -145,17 +156,53 @@ export function LoveLanguageExercise({ onBack }: LoveLanguageExerciseProps) {
             <div className="text-3xl font-bold text-pink-500 mb-4">{results.primaryLanguage}</div>
           </div>
 
-          <div className="bg-pink-50 rounded-2xl p-6 mb-6">
-            <h3 className="font-bold text-gray-800 mb-3">How to connect better:</h3>
-            <ul className="space-y-2">
-              {results.recommendations.map((rec: string, index: number) => (
-                <li key={index} className="flex items-center gap-2 text-gray-700">
-                  <Heart className="w-4 h-4 text-pink-500" />
-                  {rec}
-                </li>
-              ))}
-            </ul>
-          </div>
+          {bothCompleted ? (
+            <div className="grid md:grid-cols-2 gap-6 mb-6">
+              <div className="bg-blue-50 rounded-2xl p-6 border border-blue-200">
+                <h3 className="font-bold text-blue-800 mb-3">Your Love Language</h3>
+                <div className="text-xl font-bold text-blue-600 mb-3">{results.primaryLanguage}</div>
+                <h4 className="font-medium text-gray-700 mb-2">How to connect better:</h4>
+                <ul className="space-y-1">
+                  {results.recommendations.map((rec: string, index: number) => (
+                    <li key={index} className="flex items-center gap-2 text-gray-600 text-sm">
+                      <Heart className="w-3 h-3 text-blue-400" />
+                      {rec}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              
+              <div className="bg-purple-50 rounded-2xl p-6 border border-purple-200">
+                <h3 className="font-bold text-purple-800 mb-3">Partner's Love Language</h3>
+                <div className="text-xl font-bold text-purple-600 mb-3">{partnerResults?.primaryLanguage}</div>
+                <h4 className="font-medium text-gray-700 mb-2">How to show them love:</h4>
+                <ul className="space-y-1">
+                  {partnerResults?.recommendations?.map((rec: string, index: number) => (
+                    <li key={index} className="flex items-center gap-2 text-gray-600 text-sm">
+                      <Heart className="w-3 h-3 text-purple-400" />
+                      {rec}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-pink-50 rounded-2xl p-6 mb-6">
+              <h3 className="font-bold text-gray-800 mb-3">Your Love Language: {results.primaryLanguage}</h3>
+              <h4 className="font-medium text-gray-700 mb-2">How to connect better:</h4>
+              <ul className="space-y-2">
+                {results.recommendations.map((rec: string, index: number) => (
+                  <li key={index} className="flex items-center gap-2 text-gray-700">
+                    <Heart className="w-4 h-4 text-pink-500" />
+                    {rec}
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-4 p-3 bg-yellow-100 rounded-lg">
+                <p className="text-yellow-800 text-sm">Invite your partner to take the assessment too to see both results!</p>
+              </div>
+            </div>
+          )}
 
           <button
             onClick={onBack}

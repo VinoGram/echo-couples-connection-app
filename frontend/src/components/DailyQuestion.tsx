@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { api } from "../lib/api";
 import { QuestionsBank } from "./QuestionsBank";
@@ -13,6 +13,37 @@ interface DailyQuestionProps {
 export function DailyQuestion({ question, couple, onAnswerSubmitted }: DailyQuestionProps) {
   const [answer, setAnswer] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentQuestion, setCurrentQuestion] = useState(question);
+
+  // Poll for updates when user has answered but partner hasn't
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    
+    if (currentQuestion?.userHasAnswered && !currentQuestion?.bothAnswered) {
+      interval = setInterval(async () => {
+        try {
+          const updatedQuestion = await api.getTodayQuestion();
+          if (updatedQuestion.bothAnswered !== currentQuestion.bothAnswered) {
+            setCurrentQuestion(updatedQuestion);
+            if (updatedQuestion.bothAnswered) {
+              toast.success(`${couple.partnerName} has answered! 🎉`);
+            }
+          }
+        } catch (error) {
+          console.error('Failed to check for updates:', error);
+        }
+      }, 3000); // Check every 3 seconds
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [currentQuestion?.userHasAnswered, currentQuestion?.bothAnswered, couple.partnerName]);
+
+  // Update local state when prop changes
+  useEffect(() => {
+    setCurrentQuestion(question);
+  }, [question]);
 
   const handleSubmit = async () => {
     if (!answer.trim()) {
@@ -22,13 +53,21 @@ export function DailyQuestion({ question, couple, onAnswerSubmitted }: DailyQues
 
     setIsSubmitting(true);
     try {
-      const result = await api.submitAnswer(question.id, answer.trim());
+      // Submit to both systems
+      await api.submitAnswer(questionData.question?.id || questionData.id, answer.trim());
+      await api.submitCoupleActivity('daily_question', (questionData.question?.id || questionData.id).toString(), {
+        answer: answer.trim(),
+        questionText: questionData.question?.text || questionData.text
+      });
       
-      if (result.bothAnswered) {
-        toast.success("Both answers revealed! 🎉");
-      } else {
-        toast.success("Answer submitted! Waiting for your partner...");
-      }
+      // Update local state immediately
+      setCurrentQuestion({
+        ...questionData,
+        userHasAnswered: true,
+        userAnswer: answer.trim()
+      });
+      
+      toast.success("Answer submitted! 🎉");
       setAnswer("");
       onAnswerSubmitted();
     } catch (error) {
@@ -38,9 +77,11 @@ export function DailyQuestion({ question, couple, onAnswerSubmitted }: DailyQues
     }
   };
 
-  if (!question) {
+  if (!currentQuestion) {
     return <QuestionsBank />;
   }
+
+  const questionData = currentQuestion;
 
   return (
     <div className="space-y-8">
@@ -63,10 +104,10 @@ export function DailyQuestion({ question, couple, onAnswerSubmitted }: DailyQues
               </h2>
               <div className="flex items-center gap-2 mt-1">
                 <span className="px-3 py-1 bg-pink-100 text-pink-800 rounded-full text-xs font-medium capitalize">
-                  {question.question?.category}
+                  {questionData.question?.category}
                 </span>
                 <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium capitalize">
-                  {question.question?.depth}
+                  {questionData.question?.depth}
                 </span>
               </div>
             </div>
@@ -78,12 +119,14 @@ export function DailyQuestion({ question, couple, onAnswerSubmitted }: DailyQues
                 <HelpCircle className="w-8 h-8 text-white" />
               </div>
               <p className="text-xl text-gray-800 font-medium leading-relaxed">
-                {question.question?.text}
+                {questionData.question?.text ? 
+                  questionData.question.text.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&') 
+                  : 'Loading question...'}
               </p>
             </div>
           </div>
 
-          {question.bothAnswered ? (
+          {questionData.bothAnswered ? (
             /* Both answered - show results */
             <div className="space-y-6">
               <div className="text-center mb-6">
@@ -101,7 +144,7 @@ export function DailyQuestion({ question, couple, onAnswerSubmitted }: DailyQues
                     </div>
                     <h3 className="font-bold text-gray-800">Your Answer</h3>
                   </div>
-                  <p className="text-gray-700 leading-relaxed bg-white rounded-xl p-4">{question.userAnswer}</p>
+                  <p className="text-gray-700 leading-relaxed bg-white rounded-xl p-4">{questionData.userAnswer}</p>
                 </div>
                 
                 <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-2xl p-6 border border-purple-200 shadow-lg">
@@ -111,11 +154,11 @@ export function DailyQuestion({ question, couple, onAnswerSubmitted }: DailyQues
                     </div>
                     <h3 className="font-bold text-gray-800">{couple.partnerName}'s Answer</h3>
                   </div>
-                  <p className="text-gray-700 leading-relaxed bg-white rounded-xl p-4">{question.partnerAnswer}</p>
+                  <p className="text-gray-700 leading-relaxed bg-white rounded-xl p-4">{questionData.partnerAnswer}</p>
                 </div>
               </div>
             </div>
-          ) : question.userHasAnswered ? (
+          ) : questionData.userHasAnswered ? (
             /* User answered, waiting for partner */
             <div className="text-center py-8">
               <div className="relative inline-block mb-6">
@@ -159,7 +202,7 @@ export function DailyQuestion({ question, couple, onAnswerSubmitted }: DailyQues
               
               <div className="flex items-center justify-between bg-gray-50 rounded-2xl p-4">
                 <div className="flex items-center gap-2">
-                  {question.partnerHasAnswered ? (
+                  {questionData.partnerHasAnswered ? (
                     <>
                       <CheckCircle className="w-4 h-4 text-emerald-500 animate-pulse" />
                       <span className="text-emerald-700 font-medium">{couple.partnerName} has answered</span>

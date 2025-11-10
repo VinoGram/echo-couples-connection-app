@@ -1,20 +1,20 @@
-const API_BASE_URL = 'http://localhost:3000/api'
+const API_BASE_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api`
 
 class ApiClient {
   private token: string | null = null
 
   constructor() {
-    this.token = localStorage.getItem('auth_token')
+    this.token = sessionStorage.getItem('auth_token')
   }
 
   setToken(token: string) {
     this.token = token
-    localStorage.setItem('auth_token', token)
+    sessionStorage.setItem('auth_token', token)
   }
 
   clearToken() {
     this.token = null
-    localStorage.removeItem('auth_token')
+    sessionStorage.removeItem('auth_token')
   }
 
   private async request(endpoint: string, options: RequestInit = {}) {
@@ -31,7 +31,9 @@ class ApiClient {
     })
 
     if (!response.ok) {
-      throw new Error(`API Error: ${response.statusText}`)
+      const errorText = await response.text()
+      console.error(`API Error ${response.status}:`, errorText)
+      throw new Error(`API Error: ${response.statusText} - ${errorText}`)
     }
 
     return response.json()
@@ -47,10 +49,10 @@ class ApiClient {
     return result
   }
 
-  async register(email: string, password: string, gender: string) {
+  async register(email: string, password: string, username: string) {
     const result = await this.request('/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ email, password, gender }),
+      body: JSON.stringify({ email, password, username }),
     })
     this.setToken(result.token)
     return result
@@ -105,6 +107,10 @@ class ApiClient {
     return this.request('/questions/today')
   }
 
+  async getTodayQuestion() {
+    return this.request('/questions/today')
+  }
+
   async submitAnswer(dailyQuestionId: string, answer: string) {
     return this.request('/questions/submit', {
       method: 'POST',
@@ -127,6 +133,10 @@ class ApiClient {
     })
   }
 
+  async getPartnerGameResults(gameType: string) {
+    return this.request(`/games/partner-results/${gameType}`)
+  }
+
   // Exercises
   async getExercise(type: string) {
     return this.request(`/exercises/${type}`)
@@ -146,12 +156,20 @@ class ApiClient {
     })
   }
 
+  async getPartnerExerciseResults(exerciseType: string) {
+    return this.request(`/exercises/partner-results/${exerciseType}`)
+  }
+
   // Quizzes
   async submitQuiz(quizType: string, results: any) {
-    return this.request('/quizzes', {
+    return this.request('/quizzes/submit', {
       method: 'POST',
       body: JSON.stringify({ quizType, results }),
     })
+  }
+
+  async getPartnerQuizResults(quizType: string) {
+    return this.request(`/quizzes/partner-results/${quizType}`)
   }
 
   async getQuizzes() {
@@ -167,6 +185,12 @@ class ApiClient {
     return this.request('/chat', {
       method: 'POST',
       body: JSON.stringify({ content }),
+    })
+  }
+
+  async markMessagesAsRead() {
+    return this.request('/chat/read', {
+      method: 'PUT',
     })
   }
 
@@ -205,6 +229,54 @@ class ApiClient {
   // Awards
   async getLeaderboard() {
     return this.request('/awards/leaderboard')
+  }
+
+  // Partner name
+  async updatePartnerName(partnerName: string) {
+    return this.request('/users/partner-name', {
+      method: 'PUT',
+      body: JSON.stringify({ partnerName }),
+    })
+  }
+
+  async getPartnerName() {
+    return this.request('/users/partner-name')
+  }
+
+  async getUserStats() {
+    // Refresh token from sessionStorage in case it was updated
+    this.token = sessionStorage.getItem('auth_token')
+    return this.request('/users/stats')
+  }
+
+  // Test endpoint
+  async addTestXP() {
+    this.token = sessionStorage.getItem('auth_token')
+    return this.request('/users/test-xp', { method: 'POST' })
+  }
+
+  // Couple Activities
+  async submitCoupleActivity(activityType: string, activityName: string, response: any, activityData?: any) {
+    return this.request('/activities/submit', {
+      method: 'POST',
+      body: JSON.stringify({ activityType, activityName, response, activityData })
+    })
+  }
+
+  async getCoupleActivityResults(activityType: string, activityName: string) {
+    return this.request(`/activities/results/${activityType}/${activityName}`)
+  }
+
+  async getCoupleActivitiesHistory() {
+    return this.request('/activities/history')
+  }
+
+  async testCoupleActivities() {
+    return this.request('/activities/test', { method: 'POST' })
+  }
+
+  async createCoupleActivitiesTable() {
+    return this.request('/activities/create-table', { method: 'POST' })
   }
 }
 

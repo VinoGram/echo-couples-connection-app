@@ -44,3 +44,28 @@ class RelationshipInsightResponse(BaseModel):
     trends: Dict[str, List[float]]
     insights: List[str]
     recommendations: List[str]
+
+class QuestionGenerateRequest(BaseModel):
+    user_id: str
+    partner_id: str
+    count: Optional[int] = 5
+    category: Optional[str] = None
+
+class AdaptiveQuestionsRequest(BaseModel):
+    user_id: str
+    partner_id: Optional[str] = "unknown"
+    count: Optional[int] = 5
+    category: Optional[str] = None
+
+class FollowUpQuestionsRequest(BaseModel):
+    """Request model for generating follow-up questions based on previous answers"""
+    previous_answers: List[Dict[str, Any]]
+    count: Optional[int] = 3
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "previous_answers": [{"question": {"text": "Sample question"}, "answer": "Sample answer"}],
+                "count": 3
+            }
+        }

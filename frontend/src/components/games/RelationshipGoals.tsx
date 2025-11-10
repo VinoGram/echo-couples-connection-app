@@ -1,5 +1,7 @@
-import { useState } from 'react'
-import { Target, ArrowLeft, Plus, Trash2, CheckCircle } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Target, ArrowLeft, Plus, Trash2, CheckCircle, MessageCircle, Heart, Map, Sprout, Sparkles, PartyPopper, Users } from 'lucide-react'
+import { api } from '../../lib/api'
+import { toast } from 'sonner'
 
 interface RelationshipGoalsProps {
   onComplete: (data: any) => void
@@ -8,16 +10,19 @@ interface RelationshipGoalsProps {
 
 export function RelationshipGoals({ onComplete, onExit }: RelationshipGoalsProps) {
   const [goals, setGoals] = useState<string[]>([])
+  const [partnerGoals, setPartnerGoals] = useState<string[]>([])
   const [newGoal, setNewGoal] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('')
+  const [partnerName, setPartnerName] = useState('Partner')
+  const [bothCompleted, setBothCompleted] = useState(false)
 
   const categories = [
-    { id: 'communication', label: 'Communication', icon: '💬', color: 'blue' },
-    { id: 'intimacy', label: 'Intimacy', icon: '💕', color: 'pink' },
-    { id: 'adventure', label: 'Adventures', icon: '🗺️', color: 'green' },
-    { id: 'growth', label: 'Personal Growth', icon: '🌱', color: 'purple' },
-    { id: 'future', label: 'Future Plans', icon: '🔮', color: 'indigo' },
-    { id: 'fun', label: 'Fun & Recreation', icon: '🎉', color: 'yellow' }
+    { id: 'communication', label: 'Communication', icon: MessageCircle, color: 'blue' },
+    { id: 'intimacy', label: 'Intimacy', icon: Heart, color: 'pink' },
+    { id: 'adventure', label: 'Adventures', icon: Map, color: 'green' },
+    { id: 'growth', label: 'Personal Growth', icon: Sprout, color: 'purple' },
+    { id: 'future', label: 'Future Plans', icon: Sparkles, color: 'indigo' },
+    { id: 'fun', label: 'Fun & Recreation', icon: PartyPopper, color: 'yellow' }
   ]
 
   const goalSuggestions = {
@@ -53,24 +58,87 @@ export function RelationshipGoals({ onComplete, onExit }: RelationshipGoalsProps
     ]
   }
 
-  const addGoal = (goal: string) => {
-    if (goal.trim() && !goals.includes(goal)) {
-      setGoals([...goals, goal])
-      setNewGoal('')
+  useEffect(() => {
+    loadGoalsSession()
+    const interval = setInterval(loadGoalsSession, 2000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const loadGoalsSession = async () => {
+    try {
+      const results = await api.getCoupleActivityResults('game', 'relationship_goals')
+      if (results.results) {
+        if (results.results.user.response) {
+          setGoals(results.results.user.response.goals || [])
+          setSelectedCategory(results.results.user.response.category || '')
+        }
+        if (results.results.partner.response) {
+          setPartnerGoals(results.results.partner.response.goals || [])
+        }
+        setPartnerName(results.results.partner.name || 'Partner')
+        setBothCompleted(results.bothCompleted)
+      }
+    } catch (error) {
+      console.log('No existing goals session')
     }
   }
 
-  const removeGoal = (index: number) => {
-    setGoals(goals.filter((_, i) => i !== index))
+  const addGoal = async (goal: string) => {
+    if (goal.trim() && !goals.includes(goal)) {
+      const newGoals = [...goals, goal]
+      setGoals(newGoals)
+      setNewGoal('')
+      
+      try {
+        await api.submitCoupleActivity('game', 'relationship_goals', {
+          goals: newGoals,
+          category: selectedCategory,
+          completed: false,
+          updatedAt: new Date().toISOString()
+        })
+        toast.success('Goal added!')
+      } catch (error) {
+        toast.error('Failed to save goal')
+      }
+    }
   }
 
-  const handleComplete = () => {
-    onComplete({
-      gameType: 'relationship_goals',
-      goals,
-      category: selectedCategory,
-      completed: true
-    })
+  const removeGoal = async (index: number) => {
+    const newGoals = goals.filter((_, i) => i !== index)
+    setGoals(newGoals)
+    
+    try {
+      await api.submitCoupleActivity('game', 'relationship_goals', {
+        goals: newGoals,
+        category: selectedCategory,
+        completed: false,
+        updatedAt: new Date().toISOString()
+      })
+      toast.success('Goal removed!')
+    } catch (error) {
+      toast.error('Failed to remove goal')
+    }
+  }
+
+  const handleComplete = async () => {
+    try {
+      await api.submitCoupleActivity('game', 'relationship_goals', {
+        goals,
+        category: selectedCategory,
+        completed: true,
+        completedAt: new Date().toISOString()
+      })
+      
+      onComplete({
+        gameType: 'relationship_goals',
+        goals,
+        category: selectedCategory,
+        completed: true
+      })
+      toast.success('Goals saved successfully!')
+    } catch (error) {
+      toast.error('Failed to save goals')
+    }
   }
 
   return (
@@ -93,25 +161,32 @@ export function RelationshipGoals({ onComplete, onExit }: RelationshipGoalsProps
         <div className="text-center mb-8">
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Set Your Relationship Goals</h2>
           <p className="text-gray-600">Choose a category and create goals to strengthen your bond</p>
+          <div className="flex items-center justify-center gap-2 mt-2">
+            <Users className="w-4 h-4 text-purple-500" />
+            <span className="text-sm text-gray-600">{bothCompleted ? 'Both partners active' : 'Waiting for partner'}</span>
+          </div>
         </div>
 
         <div className="mb-6">
           <h3 className="font-bold text-gray-800 mb-3">Choose a Category</h3>
           <div className="grid grid-cols-2 gap-3">
-            {categories.map((category) => (
-              <button
-                key={category.id}
-                onClick={() => setSelectedCategory(category.id)}
-                className={`p-3 rounded-xl border transition-all ${
-                  selectedCategory === category.id
-                    ? `border-${category.color}-500 bg-${category.color}-50`
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <span className="text-lg mr-2">{category.icon}</span>
-                <span className="text-sm font-medium">{category.label}</span>
-              </button>
-            ))}
+            {categories.map((category) => {
+              const IconComponent = category.icon
+              return (
+                <button
+                  key={category.id}
+                  onClick={() => setSelectedCategory(category.id)}
+                  className={`p-3 rounded-xl border transition-all flex items-center ${
+                    selectedCategory === category.id
+                      ? 'border-purple-500 bg-purple-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <IconComponent className="w-5 h-5 mr-2 text-purple-500" />
+                  <span className="text-sm font-medium">{category.label}</span>
+                </button>
+              )
+            })}
           </div>
         </div>
 
@@ -155,28 +230,51 @@ export function RelationshipGoals({ onComplete, onExit }: RelationshipGoalsProps
           </div>
         </div>
 
-        {goals.length > 0 && (
-          <div className="mb-6">
-            <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-              <CheckCircle className="w-5 h-5 text-green-500" />
-              Your Goals ({goals.length})
-            </h3>
-            <div className="space-y-2">
-              {goals.map((goal, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between p-3 bg-green-50 rounded-xl border border-green-200"
-                >
-                  <span className="text-gray-700">{goal}</span>
-                  <button
-                    onClick={() => removeGoal(index)}
-                    className="text-red-500 hover:text-red-700 transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+        {(goals.length > 0 || partnerGoals.length > 0) && (
+          <div className="mb-6 space-y-4">
+            {goals.length > 0 && (
+              <div>
+                <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                  <CheckCircle className="w-5 h-5 text-green-500" />
+                  Your Goals ({goals.length})
+                </h3>
+                <div className="space-y-2">
+                  {goals.map((goal, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-3 bg-green-50 rounded-xl border border-green-200"
+                    >
+                      <span className="text-gray-700">{goal}</span>
+                      <button
+                        onClick={() => removeGoal(index)}
+                        className="text-red-500 hover:text-red-700 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
+            
+            {partnerGoals.length > 0 && (
+              <div>
+                <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                  <Heart className="w-5 h-5 text-pink-500" />
+                  {partnerName}'s Goals ({partnerGoals.length})
+                </h3>
+                <div className="space-y-2">
+                  {partnerGoals.map((goal, index) => (
+                    <div
+                      key={index}
+                      className="p-3 bg-pink-50 rounded-xl border border-pink-200"
+                    >
+                      <span className="text-gray-700">{goal}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -185,7 +283,7 @@ export function RelationshipGoals({ onComplete, onExit }: RelationshipGoalsProps
           disabled={goals.length === 0}
           className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-4 px-6 rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Save Relationship Goals ({goals.length})
+          Save My Goals ({goals.length})
         </button>
       </div>
     </div>

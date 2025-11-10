@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 const GameSession = require('../models/GameSession');
-const redis = require('./redis');
+const memcached = require('./memcached');
 
 module.exports = (io) => {
   // Authentication middleware for socket
@@ -17,6 +17,9 @@ module.exports = (io) => {
 
   io.on('connection', (socket) => {
     console.log(`User ${socket.userId} connected`);
+    
+    // Join user's personal room for chat
+    socket.join(`user_${socket.userId}`);
 
     // Join game room
     socket.on('join_game', async (gameId) => {
@@ -54,7 +57,7 @@ module.exports = (io) => {
       });
 
       // Update leaderboard
-      const score = await redis.zscore('leaderboard', socket.userId) || 0;
+      const score = await memcached.zscore('leaderboard', socket.userId) || 0;
       io.emit('leaderboard_update', {
         playerId: socket.userId,
         score: parseInt(score)
@@ -70,6 +73,35 @@ module.exports = (io) => {
       await gameSession.save();
 
       io.to(gameId).emit('game_ended', { gameSession });
+    });
+
+    // Chat events
+    socket.on('send_message', async (data) => {
+      const { content } = data;
+      console.log(`User ${socket.userId} sent message: ${content}`);
+      // Broadcast to all connected users
+      socket.broadcast.emit('new_message', {
+        id: Date.now(),
+        content,
+        sender: { id: socket.userId },
+        createdAt: new Date()
+      });
+      console.log('Message broadcasted to other users');
+    });
+
+    socket.on('typing_start', () => {
+      console.log(`User ${socket.userId} started typing`);
+      socket.broadcast.emit('partner_typing');
+    });
+
+    socket.on('typing_stop', () => {
+      console.log(`User ${socket.userId} stopped typing`);
+      socket.broadcast.emit('partner_stopped_typing');
+    });
+
+    socket.on('messages_read', () => {
+      console.log(`User ${socket.userId} read messages`);
+      socket.broadcast.emit('messages_marked_read', { userId: socket.userId });
     });
 
     socket.on('disconnect', () => {

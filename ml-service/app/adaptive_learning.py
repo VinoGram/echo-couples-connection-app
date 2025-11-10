@@ -29,15 +29,13 @@ class AdaptiveLearningEngine:
         profile['games_played'] += 1
         
         # Update average score
-        current_avg = profile['avg_score']
         new_score = game_data.get('score', 0)
-        profile['avg_score'] = (current_avg * (profile['games_played'] - 1) + new_score) / profile['games_played']
+        games_count = profile['games_played']
+        profile['avg_score'] = (profile['avg_score'] * (games_count - 1) + new_score) / games_count
         
         # Update category preferences
         category = game_data.get('category', 'general')
-        if category not in profile['preferred_categories']:
-            profile['preferred_categories'][category] = 0
-        profile['preferred_categories'][category] += 1
+        profile['preferred_categories'][category] = profile['preferred_categories'].get(category, 0) + 1
         
         # Update difficulty performance
         difficulty = game_data.get('difficulty', 'medium')
@@ -70,8 +68,8 @@ class AdaptiveLearningEngine:
         if not difficulty_scores:
             return 'medium'
         
-        # Find difficulty with best performance but not too easy
-        best_difficulty = max(difficulty_scores.items(), key=lambda x: x[1])
+        # Find difficulty with best performance
+        best_diff_name, best_score = max(difficulty_scores.items(), key=lambda x: x[1])
         
         # If performing well on current difficulty, suggest harder
         if best_difficulty[1] > 0.8 and best_difficulty[0] != 'hard':
@@ -157,7 +155,7 @@ class AdaptiveLearningEngine:
             self.question_history[couple_key] = []
         
         session_data = {
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': datetime.utcnow().isoformat() + 'Z',
             'question_ids': game_data.get('question_ids', []),
             'user_responses': {user_id: game_data.get('user_responses', {})},
             'scores': {user_id: game_data.get('score', 0)},
@@ -166,12 +164,15 @@ class AdaptiveLearningEngine:
         
         self.question_history[couple_key].append(session_data)
         
-        # Update user profiles
-        self.update_user_profile(user_id, game_data)
-        if partner_id and partner_id != user_id:
-            partner_data = game_data.get('partner_data', {})
-            if partner_data:
-                self.update_user_profile(partner_id, partner_data)
+        # Update user profiles with error handling
+        try:
+            self.update_user_profile(user_id, game_data)
+            if partner_id and partner_id != user_id:
+                partner_data = game_data.get('partner_data', {})
+                if partner_data:
+                    self.update_user_profile(partner_id, partner_data)
+        except Exception as e:
+            print(f"Error updating user profiles: {e}")
     
     def get_learning_insights(self, user_id: str) -> Dict[str, Any]:
         """Generate learning insights for user"""
@@ -214,9 +215,10 @@ class AdaptiveLearningEngine:
         """Generate improvement suggestions"""
         suggestions = []
         
-        if profile['avg_score'] < 0.5:
+        avg_score = profile['avg_score']
+        if avg_score < 0.5:
             suggestions.append("Try easier questions to build confidence")
-        elif profile['avg_score'] > 0.8:
+        elif avg_score > 0.8:
             suggestions.append("Challenge yourself with harder questions")
         
         if len(profile['preferred_categories']) < 3:
@@ -239,11 +241,11 @@ class AdaptiveLearningEngine:
         self.conversation_contexts[couple_key].append(conversation_data)
         
         # Keep only last 10 conversation contexts
-        if len(self.conversation_contexts[couple_key]) > 10:
-            self.conversation_contexts[couple_key] = self.conversation_contexts[couple_key][-10:]
+        contexts = self.conversation_contexts[couple_key]
+        if len(contexts) > 10:
+            self.conversation_contexts[couple_key] = contexts[-10:]
         
         # Update user profiles based on conversation topics
         topics = conversation_data.get('topics', [])
-        for topic in topics:
-            # This would update user preferences based on conversation patterns
-            pass
+        # TODO: Implement topic-based preference updates
+        return len(topics)  # Return number of topics processed

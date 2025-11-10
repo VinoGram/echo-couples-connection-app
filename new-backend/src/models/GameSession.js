@@ -12,7 +12,7 @@ const GameSession = sequelize.define('GameSession', {
     defaultValue: []
   },
   gameType: {
-    type: DataTypes.ENUM('daily_question', 'quiz', 'this_or_that', 'would_you_rather', 'memory_lane', 'truth_or_dare', 'love_language', 'couple_trivia', 'date_night_planner', 'relationship_goals', 'story_builder'),
+    type: DataTypes.ENUM('daily_question', 'quiz', 'this_or_that', 'would_you_rather', 'memory_lane', 'truth_or_dare', 'love_language', 'couple_trivia', 'date_night_planner', 'relationship_goals', 'story_builder', 'relationship', 'fun', 'compatibility', 'daily'),
     allowNull: false
   },
   status: {
@@ -31,6 +31,10 @@ const GameSession = sequelize.define('GameSession', {
   },
   duration: {
     type: DataTypes.INTEGER
+  },
+  gameData: {
+    type: DataTypes.JSONB,
+    defaultValue: {}
   }
 }, {
   timestamps: true

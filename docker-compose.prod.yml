@@ -1,0 +1,26 @@
+version: '3.8'
+services:
+  backend:
+    build: ./backend
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - NODE_ENV=production
+    ports:
+      - "3000:3000"
+
+  ml-service:
+    build: ./ml-service
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - BACKEND_URL=https://your-backend-url.com
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build: ./frontend
+    environment:
+      - VITE_API_URL=https://your-backend-url.com
+      - VITE_ML_SERVICE_URL=https://your-ml-service-url.com
+    ports:
+      - "80:80"

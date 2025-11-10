@@ -31,8 +31,23 @@ class SentimentAnalyzer:
         }
     
     def analyze(self, text: str) -> SentimentResponse:
-        # Clean and tokenize text
-        words = self._tokenize(text.lower())
+        if not text or not isinstance(text, str):
+            return SentimentResponse(
+                sentiment='neutral',
+                confidence=0.5,
+                emotions={emotion: 0.0 for emotion in self.emotion_keywords.keys()}
+            )
+        
+        try:
+            # Clean and tokenize text
+            words = self._tokenize(text.lower())
+        except Exception:
+            # Return neutral sentiment on tokenization error
+            return SentimentResponse(
+                sentiment='neutral',
+                confidence=0.5,
+                emotions={emotion: 0.0 for emotion in self.emotion_keywords.keys()}
+            )
         
         # Calculate sentiment scores
         positive_score = sum(1 for word in words if word in self.positive_words)
@@ -40,7 +55,7 @@ class SentimentAnalyzer:
         
         total_sentiment_words = positive_score + negative_score
         
-        if total_sentiment_words == 0:
+        if total_sentiment_words == 0 or len(words) == 0:
             sentiment = 'neutral'
             confidence = 0.5
         else:
@@ -57,7 +72,10 @@ class SentimentAnalyzer:
                 confidence = 0.6
         
         # Analyze emotions
-        emotions = self._analyze_emotions(words)
+        try:
+            emotions = self._analyze_emotions(words)
+        except Exception:
+            emotions = {emotion: 0.0 for emotion in self.emotion_keywords.keys()}
         
         return SentimentResponse(
             sentiment=sentiment,
@@ -71,6 +89,9 @@ class SentimentAnalyzer:
         return text.split()
     
     def _analyze_emotions(self, words: List[str]) -> Dict[str, float]:
+        if not words or not isinstance(words, list):
+            return {emotion: 0.0 for emotion in self.emotion_keywords.keys()}
+        
         emotions = {}
         
         for emotion, keywords in self.emotion_keywords.items():
@@ -96,12 +117,15 @@ class SentimentAnalyzer:
         all_emotions = {'joy': 0, 'love': 0, 'gratitude': 0, 'sadness': 0, 'anger': 0, 'anxiety': 0}
         
         for message in messages:
-            analysis = self.analyze(message)
-            sentiments.append(analysis.sentiment)
-            
-            for emotion, score in analysis.emotions.items():
-                if emotion in all_emotions:
-                    all_emotions[emotion] += score
+            try:
+                analysis = self.analyze(message)
+                sentiments.append(analysis.sentiment)
+                
+                for emotion, score in analysis.emotions.items():
+                    if emotion in all_emotions:
+                        all_emotions[emotion] += score
+            except Exception:
+                sentiments.append('neutral')
         
         # Calculate overall metrics
         positive_ratio = sentiments.count('positive') / total_messages

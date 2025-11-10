@@ -115,6 +115,133 @@ class EmailService {
 
     return this.transporter.sendMail(mailOptions);
   }
+
+  async sendWelcomeEmail(email, username) {
+    const mailOptions = {
+      from: `"Echo App" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'Welcome to Echo - Your Couples Connection Journey Begins! 💕',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #ec4899, #8b5cf6); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="color: white; margin: 0; font-size: 28px;">Welcome to Echo! 🎉</h1>
+          </div>
+          <div style="padding: 30px; background: #f9fafb; border-radius: 0 0 10px 10px;">
+            <h2 style="color: #374151; margin-top: 0;">Hi ${username}! 👋</h2>
+            <p style="color: #6b7280; font-size: 16px; line-height: 1.6;">
+              Welcome to Echo, the app that helps couples grow closer through meaningful conversations and fun activities!
+            </p>
+            <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <h3 style="color: #ec4899; margin-top: 0;">🚀 You've earned 100 XP to get started!</h3>
+              <p style="color: #6b7280;">Ready to connect with your partner and start your journey together?</p>
+            </div>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${process.env.FRONTEND_URL}" style="background: linear-gradient(135deg, #ec4899, #8b5cf6); color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: bold;">Start Your Journey</a>
+            </div>
+          </div>
+        </div>
+      `
+    };
+
+    return this.transporter.sendMail(mailOptions);
+  }
+
+  async sendLoginNotification(email, username, loginTime) {
+    const mailOptions = {
+      from: `"Echo App" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'Login Alert - Echo Couples App 🔐',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="color: white; margin: 0; font-size: 24px;">Login Alert 🔐</h1>
+          </div>
+          <div style="padding: 30px; background: #f9fafb; border-radius: 0 0 10px 10px;">
+            <h2 style="color: #374151; margin-top: 0;">Hi ${username}!</h2>
+            <p style="color: #6b7280; font-size: 16px; line-height: 1.6;">
+              We noticed you just logged into your Echo account.
+            </p>
+            <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <p style="color: #374151; margin: 0;"><strong>Login Time:</strong> ${loginTime.toLocaleString()}</p>
+            </div>
+            <p style="color: #6b7280; font-size: 14px;">
+              If this wasn't you, please secure your account immediately.
+            </p>
+          </div>
+        </div>
+      `
+    };
+
+    return this.transporter.sendMail(mailOptions);
+  }
+
+  async sendInactiveUserReminder(email, username, daysSinceLogin) {
+    const mailOptions = {
+      from: `"Echo App" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: `We miss you! Come back to Echo 💕`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #f59e0b, #d97706); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="color: white; margin: 0; font-size: 28px;">We Miss You! 💕</h1>
+          </div>
+          <div style="padding: 30px; background: #f9fafb; border-radius: 0 0 10px 10px;">
+            <h2 style="color: #374151; margin-top: 0;">Hi ${username}! 👋</h2>
+            <p style="color: #6b7280; font-size: 16px; line-height: 1.6;">
+              It's been ${daysSinceLogin} days since we last saw you on Echo. Your relationship journey is waiting!
+            </p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${process.env.FRONTEND_URL}" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: bold;">Continue Your Journey</a>
+            </div>
+          </div>
+        </div>
+      `
+    };
+
+    return this.transporter.sendMail(mailOptions);
+  }
+
+  async sendActivityCompletionNotification(email, username, partnerName, activityType, activityName) {
+    const activityTypeNames = {
+      'game': 'Game',
+      'quiz': 'Quiz',
+      'exercise': 'Exercise',
+      'daily_question': 'Daily Question'
+    };
+    
+    const typeName = activityTypeNames[activityType] || 'Activity';
+    
+    const mailOptions = {
+      from: `"Echo App" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: `🎉 ${partnerName} completed a ${typeName}!`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #10b981, #059669); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="color: white; margin: 0; font-size: 28px;">Activity Complete! 🎉</h1>
+          </div>
+          <div style="padding: 30px; background: #f9fafb; border-radius: 0 0 10px 10px;">
+            <h2 style="color: #374151; margin-top: 0;">Hi ${username}! 👋</h2>
+            <p style="color: #6b7280; font-size: 16px; line-height: 1.6;">
+              Great news! <strong>${partnerName}</strong> just completed the <strong>${activityName.replace('_', ' ')}</strong> ${typeName.toLowerCase()}.
+            </p>
+            <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981;">
+              <h3 style="color: #10b981; margin-top: 0;">💕 Ready to see their responses?</h3>
+              <p style="color: #6b7280; margin-bottom: 0;">Check out what they shared and compare your answers together!</p>
+            </div>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${process.env.FRONTEND_URL}" style="background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: bold;">View Results</a>
+            </div>
+            <p style="color: #9ca3af; font-size: 14px; text-align: center;">
+              Keep connecting and growing together! 💕
+            </p>
+          </div>
+        </div>
+      `
+    };
+
+    return this.transporter.sendMail(mailOptions);
+  }
 }
 
 module.exports = new EmailService();

@@ -19,9 +19,12 @@ export function QuizHub() {
   const [currentQuestion, setCurrentQuestion] = useState(0)
   const [answers, setAnswers] = useState<any[]>([])
   const [results, setResults] = useState<any>(null)
+  const [partnerResults, setPartnerResults] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [generatedQuestions, setGeneratedQuestions] = useState<any[]>([])
   const [isGenerating, setIsGenerating] = useState(false)
+  const [bothCompleted, setBothCompleted] = useState(false)
+  const [viewingResults, setViewingResults] = useState<string | null>(null)
 
   const quizzes = [
     {
@@ -125,6 +128,153 @@ export function QuizHub() {
     }
   ]
 
+  const generateAdaptiveQuiz = async (category: string) => {
+    setIsGenerating(true)
+    try {
+      // Get chat history for better question generation
+      let chatHistory = []
+      try {
+        const messages = await api.getMessages()
+        chatHistory = messages.slice(-20) // Last 20 messages
+      } catch (error) {
+        console.log('Could not fetch chat history for question generation')
+      }
+      
+      const requestBody = {
+        user_id: 'user_123',
+        partner_id: 'partner_123',
+        category: category,
+        count: 5,
+        chat_history: chatHistory
+      }
+      
+      console.log('Sending request to ML service:', requestBody)
+      
+      const response = await fetch(`${import.meta.env.VITE_ML_SERVICE_URL}/questions/adaptive`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      })
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('ML service error:', response.status, errorText)
+        throw new Error(`ML service returned ${response.status}: ${errorText}`)
+      }
+      
+      const data = await response.json()
+      console.log('ML service response:', data)
+      
+      if (!data.questions || !Array.isArray(data.questions)) {
+        throw new Error('Invalid response format from ML service')
+      }
+      
+      // Convert ML questions to proper quiz format based on question type
+      const adaptiveQuiz = {
+        id: `adaptive_${category}`,
+        title: `AI ${category.charAt(0).toUpperCase() + category.slice(1)} Quiz`,
+        description: `Personalized ${category} questions generated just for you`,
+        questions: data.questions.map((q: any) => {
+          let questionText = q.text || 'Generated question'
+          
+          // Fix incomplete questions by ensuring they end properly
+          if (questionText.endsWith(':') || questionText.includes('we:')) {
+            if (category === 'communication') {
+              if (questionText.includes('engaged')) {
+                questionText = 'I feel most engaged when we communicate by:'
+              } else {
+                questionText = questionText.replace(/we:?$/, 'we communicate?')
+              }
+            } else {
+              questionText = questionText.replace(/:$/, '?')
+            }
+          }
+          
+          // Generate appropriate options based on category and question content
+          let options: string[]
+          
+          if (category === 'communication') {
+            if (questionText.toLowerCase().includes('engaged') || questionText.toLowerCase().includes('communicate by')) {
+              options = [
+                'Having deep, meaningful conversations',
+                'Sharing daily experiences and feelings',
+                'Discussing our future plans together',
+                'Expressing appreciation and gratitude',
+                'Working through challenges as a team'
+              ]
+            } else if (questionText.toLowerCase().includes('prefer') || questionText.toLowerCase().includes('like')) {
+              options = [
+                'Direct and honest communication',
+                'Gentle and diplomatic approach', 
+                'Written messages or texts',
+                'Face-to-face conversations',
+                'Taking time to think first'
+              ]
+            } else if (questionText.toLowerCase().includes('conflict') || questionText.toLowerCase().includes('disagree')) {
+              options = [
+                'Address it immediately',
+                'Take a break and cool down',
+                'Seek to understand first',
+                'Find a compromise',
+                'Avoid the topic'
+              ]
+            } else {
+              options = [
+                'Very important to me',
+                'Somewhat important',
+                'Neutral about it',
+                'Not very important',
+                'Not important at all'
+              ]
+            }
+          } else if (category === 'intimacy') {
+            options = [
+              'Physical touch and closeness',
+              'Deep emotional conversations',
+              'Quality time together',
+              'Shared experiences and activities',
+              'Words of affirmation and love'
+            ]
+          } else if (category === 'fun') {
+            options = [
+              'Adventurous outdoor activities',
+              'Cozy indoor activities',
+              'Social activities with others',
+              'Creative and artistic pursuits',
+              'Relaxing and peaceful activities'
+            ]
+          } else {
+            // Default to preference-based options
+            options = [
+              'Absolutely love this',
+              'Really enjoy this',
+              'It\'s okay',
+              'Not really my thing',
+              'Definitely not for me'
+            ]
+          }
+          
+          return {
+            question: questionText,
+            options,
+            type: 'multiple_choice' as const
+          }
+        })
+      }
+      
+      setActiveQuiz(adaptiveQuiz)
+      setCurrentQuestion(0)
+      setAnswers([])
+      setResults(null)
+      toast.success(`Generated ${data.questions.length} personalized questions!`)
+    } catch (error) {
+      console.error('Adaptive quiz generation failed:', error)
+      toast.error(`Failed to generate adaptive quiz: ${error.message}`)
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+
   const startQuiz = (quiz: any) => {
     if (quiz.isAdaptive) {
       generateAdaptiveQuiz(quiz.category)
@@ -151,21 +301,65 @@ export function QuizHub() {
   const calculateResults = async (finalAnswers: string[]) => {
     setLoading(true)
     try {
-      // Simple result calculation - in a real app, this would be more sophisticated
       const result = {
         quizType: activeQuiz!.id,
         answers: finalAnswers,
-        primaryResult: finalAnswers[0], // Simplified
+        primaryResult: finalAnswers[0],
         summary: getResultSummary(activeQuiz!.id, finalAnswers)
       }
       
-      await api.submitQuiz(activeQuiz!.id, result)
+      // Submit to couple activities system
+      await api.submitCoupleActivity('quiz', activeQuiz!.id, result)
       setResults(result)
-      toast.success('Quiz completed!')
+      
+      // Check for partner's results
+      const coupleResults = await api.getCoupleActivityResults('quiz', activeQuiz!.id)
+      if (coupleResults.bothCompleted && coupleResults.results) {
+        const partnerResponse = coupleResults.results.partner.response
+        setPartnerResults(partnerResponse)
+        setBothCompleted(true)
+        toast.success('Quiz completed! Your partner has results too!')
+      } else {
+        toast.success('Quiz completed! Waiting for your partner...')
+      }
     } catch (error) {
       toast.error('Failed to save quiz results')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const checkForPartnerResults = async () => {
+    try {
+      const coupleResults = await api.getCoupleActivityResults('quiz', activeQuiz!.id)
+      if (coupleResults.bothCompleted && coupleResults.results) {
+        const partnerResponse = coupleResults.results.partner.response
+        setPartnerResults(partnerResponse)
+        setBothCompleted(true)
+        toast.success('Your partner has completed the quiz too!')
+      }
+    } catch (error) {
+      console.error('Failed to check partner results:', error)
+    }
+  }
+
+  const viewQuizResults = async (quizId: string) => {
+    try {
+      const coupleResults = await api.getCoupleActivityResults('quiz', quizId)
+      if (coupleResults.results) {
+        const quiz = quizzes.find(q => q.id === quizId)
+        setActiveQuiz(quiz || null)
+        setResults(coupleResults.results.user.response)
+        if (coupleResults.bothCompleted) {
+          setPartnerResults(coupleResults.results.partner.response)
+          setBothCompleted(true)
+        }
+        setViewingResults(quizId)
+      } else {
+        toast.info('No results found for this quiz yet')
+      }
+    } catch (error) {
+      toast.error('Failed to load quiz results')
     }
   }
 
@@ -184,30 +378,98 @@ export function QuizHub() {
 
   if (results) {
     return (
-      <div className="max-w-2xl mx-auto">
-        <div className="bg-white rounded-3xl p-8 shadow-xl text-center">
-          <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <CheckCircle className="w-8 h-8 text-white" />
+      <div className="max-w-4xl mx-auto">
+        <div className="bg-white rounded-3xl p-8 shadow-xl">
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <CheckCircle className="w-8 h-8 text-white" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">Quiz Complete!</h2>
           </div>
           
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Quiz Complete!</h2>
-          <div className="bg-gray-50 rounded-2xl p-6 mb-6">
-            <h3 className="font-bold text-gray-800 mb-2">{activeQuiz?.title} Results</h3>
-            <p className="text-gray-700">{results.summary}</p>
-          </div>
+          {bothCompleted ? (
+            <div className="grid md:grid-cols-2 gap-6 mb-8">
+              <div className="bg-blue-50 rounded-2xl p-6">
+                <h3 className="font-bold text-blue-800 mb-4">Your Results</h3>
+                <p className="text-blue-700 mb-4">{results.summary}</p>
+                <div className="space-y-2">
+                  {results.answers.map((answer: string, index: number) => (
+                    <div key={index} className="text-sm text-blue-600">
+                      Q{index + 1}: {answer}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="bg-purple-50 rounded-2xl p-6">
+                <h3 className="font-bold text-purple-800 mb-4">Partner's Results</h3>
+                <p className="text-purple-700 mb-4">{getResultSummary(activeQuiz!.id, partnerResults.answers)}</p>
+                <div className="space-y-2">
+                  {partnerResults.answers.map((answer: string, index: number) => (
+                    <div key={index} className="text-sm text-purple-600">
+                      Q{index + 1}: {answer}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-gray-50 rounded-2xl p-6 mb-6">
+              <h3 className="font-bold text-gray-800 mb-2">{activeQuiz?.title} Results</h3>
+              <p className="text-gray-700 mb-4">{results.summary}</p>
+              <div className="bg-yellow-50 rounded-xl p-4 mb-4">
+                <p className="text-yellow-800 text-sm">Waiting for your partner to complete the quiz...</p>
+                <button 
+                  onClick={checkForPartnerResults}
+                  className="mt-2 text-yellow-600 hover:text-yellow-800 underline text-sm"
+                >
+                  Check again
+                </button>
+              </div>
+            </div>
+          )}
           
-          <div className="space-y-3">
+          {bothCompleted && (
+            <div className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-2xl p-6 mb-6">
+              <h4 className="font-bold text-gray-800 mb-3">Compatibility Analysis</h4>
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div>
+                  <div className="text-2xl font-bold text-green-500">
+                    {Math.round((results.answers.filter((ans: string, i: number) => ans === partnerResults.answers[i]).length / results.answers.length) * 100)}%
+                  </div>
+                  <div className="text-sm text-gray-600">Match Rate</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-blue-500">
+                    {results.answers.filter((ans: string, i: number) => ans === partnerResults.answers[i]).length}
+                  </div>
+                  <div className="text-sm text-gray-600">Same Answers</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-purple-500">
+                    {results.answers.length - results.answers.filter((ans: string, i: number) => ans === partnerResults.answers[i]).length}
+                  </div>
+                  <div className="text-sm text-gray-600">Different Views</div>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <div className="text-center space-y-3">
             <button
               onClick={() => {
                 setActiveQuiz(null)
                 setResults(null)
+                setPartnerResults(null)
+                setBothCompleted(false)
+                setViewingResults(null)
               }}
               className="w-full bg-gradient-to-r from-pink-500 to-purple-500 text-white font-bold py-3 px-6 rounded-xl hover:from-pink-600 hover:to-purple-600 transition-all"
             >
               Take Another Quiz
             </button>
             <p className="text-sm text-gray-500">
-              Compare your results with your partner to learn more about each other!
+              {bothCompleted ? 'Great job exploring your compatibility together!' : 'Share this quiz with your partner to compare results!'}
             </p>
           </div>
         </div>
@@ -309,32 +571,41 @@ export function QuizHub() {
                 )}
               </div>
 
-              <button
-                onClick={() => startQuiz(quiz)}
-                disabled={isGenerating}
-                className={`w-full bg-gradient-to-r ${quiz.color} text-white font-bold py-3 px-6 rounded-xl hover:shadow-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50`}
-              >
-                <div className="flex items-center justify-center gap-2">
-                  {quiz.isAdaptive ? (
-                    isGenerating ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        <span>Generating...</span>
-                      </>
+              <div className="space-y-2">
+                <button
+                  onClick={() => startQuiz(quiz)}
+                  disabled={isGenerating}
+                  className={`w-full bg-gradient-to-r ${quiz.color} text-white font-bold py-3 px-6 rounded-xl hover:shadow-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50`}
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    {quiz.isAdaptive ? (
+                      isGenerating ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          <span>Generating...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-5 h-5" />
+                          <span>Generate Quiz</span>
+                        </>
+                      )
                     ) : (
                       <>
-                        <Sparkles className="w-5 h-5" />
-                        <span>Generate Quiz</span>
+                        <BarChart3 className="w-5 h-5" />
+                        <span>Start Quiz</span>
                       </>
-                    )
-                  ) : (
-                    <>
-                      <BarChart3 className="w-5 h-5" />
-                      <span>Start Quiz</span>
-                    </>
-                  )}
-                </div>
-              </button>
+                    )}
+                  </div>
+                </button>
+                <button
+                  onClick={() => viewQuizResults(quiz.id)}
+                  className="w-full bg-gray-100 text-gray-700 font-medium py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors text-sm flex items-center justify-center gap-2"
+                >
+                  <Users className="w-4 h-4" />
+                  <span>View Couple Results</span>
+                </button>
+              </div>
             </div>
           )
         })}

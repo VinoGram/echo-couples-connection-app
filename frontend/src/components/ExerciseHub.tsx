@@ -6,6 +6,7 @@ import { LoveLanguageExercise } from './exercises/LoveLanguageExercise'
 import { CommunicationExercise } from './exercises/CommunicationExercise'
 import { GratitudeJournal } from './exercises/GratitudeJournal'
 import { ConflictResolution } from './exercises/ConflictResolution'
+import { CoupleResults } from './CoupleResults'
 
 export function ExerciseHub() {
   const [activeExercise, setActiveExercise] = useState<string | null>(null)
@@ -67,11 +68,22 @@ export function ExerciseHub() {
   const loadExercise = async (exerciseId: string) => {
     setLoading(true)
     try {
-      const data = await api.getExercise(exerciseId)
-      setExerciseData(data)
+      // Load shared exercise data from couple activities
+      const coupleResults = await api.getCoupleActivityResults('exercise', exerciseId)
+      if (coupleResults.results) {
+        // Merge both partners' contributions into shared data
+        const sharedData = {
+          items: [
+            ...(coupleResults.results.user.response?.items || []),
+            ...(coupleResults.results.partner.response?.items || [])
+          ].sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime())
+        }
+        setExerciseData(sharedData)
+      } else {
+        setExerciseData({ items: [] })
+      }
       setActiveExercise(exerciseId)
     } catch (error) {
-      // If exercise doesn't exist, create empty one
       setExerciseData({ items: [] })
       setActiveExercise(exerciseId)
     } finally {
@@ -84,12 +96,23 @@ export function ExerciseHub() {
     
     setSaving(true)
     try {
-      await api.updateExercise(activeExercise, exerciseData)
-      toast.success('Exercise saved!')
+      // Save to couple activities system as shared data
+      await api.submitCoupleActivity('exercise', activeExercise, exerciseData)
+      toast.success('Saved! Your partner can see this too.')
     } catch (error) {
       toast.error('Failed to save exercise')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const viewExerciseResults = (exerciseId: string) => {
+    // For shared exercises like appreciation_wall and dream_board, load the shared data
+    if (exerciseId === 'appreciation_wall' || exerciseId === 'dream_board') {
+      loadExercise(exerciseId)
+    } else {
+      // For other exercises, use CoupleResults component
+      setActiveExercise(`results_${exerciseId}`)
     }
   }
 
@@ -117,24 +140,46 @@ export function ExerciseHub() {
         return (
           <div className="space-y-6">
             <div className="bg-yellow-50 rounded-2xl p-6 border border-yellow-200">
-              <h3 className="font-bold text-gray-800 mb-2">How it works:</h3>
-              <p className="text-gray-700">{exercise.instructions}</p>
+              <h3 className="font-bold text-gray-800 mb-2">Shared Space:</h3>
+              <p className="text-gray-700">{exercise.instructions} Both you and your partner can add notes here and see each other's contributions in real-time!</p>
             </div>
             
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
               {exerciseData.items?.map((note: any, index: number) => (
-                <div key={index} className="bg-yellow-200 rounded-xl p-4 shadow-md transform rotate-1 hover:rotate-0 transition-transform">
+                <div key={note.id || index} className={`rounded-xl p-4 shadow-md transform hover:rotate-0 transition-transform ${
+                  note.author === 'You' ? 'bg-blue-200 rotate-1' : 'bg-pink-200 -rotate-1'
+                }`}>
                   <p className="text-gray-800 font-medium">{note.text}</p>
-                  <p className="text-xs text-gray-600 mt-2">- {note.author}</p>
+                  <div className="flex justify-between items-center mt-2">
+                    <p className="text-xs text-gray-600">- {note.author}</p>
+                    {note.date && (
+                      <p className="text-xs text-gray-500">
+                        {new Date(note.date).toLocaleDateString()}
+                      </p>
+                    )}
+                  </div>
                 </div>
               ))}
               
               <button
-                onClick={() => {
+                onClick={async () => {
                   const text = prompt('Write your appreciation note:')
                   if (text) {
-                    const newItems = [...(exerciseData.items || []), { text, author: 'You', date: new Date().toISOString() }]
-                    setExerciseData({ ...exerciseData, items: newItems })
+                    const newItems = [...(exerciseData.items || []), { 
+                      text, 
+                      author: 'You', 
+                      date: new Date().toISOString(),
+                      id: Date.now().toString()
+                    }]
+                    const updatedData = { ...exerciseData, items: newItems }
+                    setExerciseData(updatedData)
+                    // Auto-save so partner can see immediately
+                    try {
+                      await api.submitCoupleActivity('exercise', activeExercise, updatedData)
+                      toast.success('Note added! Your partner can see it now.')
+                    } catch (error) {
+                      toast.error('Failed to save note')
+                    }
                   }
                 }}
                 className="bg-yellow-300 rounded-xl p-4 border-2 border-dashed border-yellow-400 hover:bg-yellow-400 transition-colors flex items-center justify-center min-h-[100px]"
@@ -152,29 +197,60 @@ export function ExerciseHub() {
         return (
           <div className="space-y-6">
             <div className="bg-purple-50 rounded-2xl p-6 border border-purple-200">
-              <h3 className="font-bold text-gray-800 mb-2">How it works:</h3>
-              <p className="text-gray-700">{exercise.instructions}</p>
+              <h3 className="font-bold text-gray-800 mb-2">Shared Dreams:</h3>
+              <p className="text-gray-700">{exercise.instructions} This is your shared vision board - both partners can add dreams and see each other's goals!</p>
             </div>
             
             <div className="grid md:grid-cols-2 gap-6">
               {exerciseData.items?.map((dream: any, index: number) => (
-                <div key={index} className="bg-white rounded-2xl p-6 shadow-lg border border-purple-100">
-                  <h4 className="font-bold text-gray-800 mb-2">{dream.title}</h4>
+                <div key={dream.id || index} className={`rounded-2xl p-6 shadow-lg border ${
+                  dream.author === 'You' ? 'bg-blue-50 border-blue-200' : 'bg-pink-50 border-pink-200'
+                }`}>
+                  <div className="flex justify-between items-start mb-2">
+                    <h4 className="font-bold text-gray-800">{dream.title}</h4>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      dream.author === 'You' ? 'bg-blue-200 text-blue-800' : 'bg-pink-200 text-pink-800'
+                    }`}>
+                      {dream.author}
+                    </span>
+                  </div>
                   <p className="text-gray-700 mb-3">{dream.description}</p>
-                  <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
-                    {dream.category}
-                  </span>
+                  <div className="flex justify-between items-center">
+                    <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                      {dream.category}
+                    </span>
+                    {dream.date && (
+                      <span className="text-xs text-gray-500">
+                        {new Date(dream.date).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
                 </div>
               ))}
               
               <button
-                onClick={() => {
+                onClick={async () => {
                   const title = prompt('Dream title:')
                   const description = prompt('Description:')
                   const category = prompt('Category (date, vacation, goal):')
                   if (title && description) {
-                    const newItems = [...(exerciseData.items || []), { title, description, category: category || 'goal' }]
-                    setExerciseData({ ...exerciseData, items: newItems })
+                    const newItems = [...(exerciseData.items || []), { 
+                      title, 
+                      description, 
+                      category: category || 'goal',
+                      author: 'You',
+                      date: new Date().toISOString(),
+                      id: Date.now().toString()
+                    }]
+                    const updatedData = { ...exerciseData, items: newItems }
+                    setExerciseData(updatedData)
+                    // Auto-save so partner can see immediately
+                    try {
+                      await api.submitCoupleActivity('exercise', activeExercise, updatedData)
+                      toast.success('Dream added! Your partner can see it now.')
+                    } catch (error) {
+                      toast.error('Failed to save dream')
+                    }
                   }
                 }}
                 className="bg-purple-50 rounded-2xl p-6 border-2 border-dashed border-purple-200 hover:bg-purple-100 transition-colors flex items-center justify-center min-h-[150px]"
@@ -194,7 +270,20 @@ export function ExerciseHub() {
             <p className="text-gray-600">This exercise is coming soon!</p>
           </div>
         )
+
     }
+  }
+
+  // Handle CoupleResults view
+  if (activeExercise?.startsWith('results_')) {
+    const exerciseId = activeExercise.replace('results_', '')
+    return (
+      <CoupleResults
+        activityType="exercise"
+        activityName={exerciseId}
+        onBack={() => setActiveExercise(null)}
+      />
+    )
   }
 
   if (activeExercise) {
@@ -261,23 +350,32 @@ export function ExerciseHub() {
                 <p className="font-medium text-gray-800">{exercise.instructions}</p>
               </div>
 
-              <button
-                onClick={() => loadExercise(exercise.id)}
-                disabled={loading}
-                className={`w-full bg-gradient-to-r ${exercise.color} text-white font-bold py-3 px-6 rounded-xl hover:shadow-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:transform-none`}
-              >
-                {loading ? (
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>Loading...</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center gap-2">
-                    <IconComponent className="w-5 h-5" />
-                    <span>Start Exercise</span>
-                  </div>
-                )}
-              </button>
+              <div className="space-y-2">
+                <button
+                  onClick={() => loadExercise(exercise.id)}
+                  disabled={loading}
+                  className={`w-full bg-gradient-to-r ${exercise.color} text-white font-bold py-3 px-6 rounded-xl hover:shadow-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:transform-none`}
+                >
+                  {loading ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Loading...</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center gap-2">
+                      <IconComponent className="w-5 h-5" />
+                      <span>Start Exercise</span>
+                    </div>
+                  )}
+                </button>
+                <button
+                  onClick={() => viewExerciseResults(exercise.id)}
+                  className="w-full bg-gray-100 text-gray-700 font-medium py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors text-sm flex items-center justify-center gap-2"
+                >
+                  <Users className="w-4 h-4" />
+                  <span>View Couple Results</span>
+                </button>
+              </div>
             </div>
           )
         })}

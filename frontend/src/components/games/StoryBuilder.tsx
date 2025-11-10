@@ -1,5 +1,7 @@
-import { useState } from 'react'
-import { BookOpen, ArrowLeft, Send, RotateCcw } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { BookOpen, ArrowLeft, Send, RotateCcw, Users } from 'lucide-react'
+import { api } from '../../lib/api'
+import { toast } from 'sonner'
 
 interface StoryBuilderProps {
   onComplete: (data: any) => void
@@ -9,8 +11,11 @@ interface StoryBuilderProps {
 export function StoryBuilder({ onComplete, onExit }: StoryBuilderProps) {
   const [story, setStory] = useState<string[]>([])
   const [currentInput, setCurrentInput] = useState('')
-  const [currentPlayer, setCurrentPlayer] = useState(1)
   const [storyPrompt, setStoryPrompt] = useState('')
+  const [isMyTurn, setIsMyTurn] = useState(true)
+  const [partnerName, setPartnerName] = useState('Partner')
+  const [loading, setLoading] = useState(true)
+  const [bothJoined, setBothJoined] = useState(false)
 
   const storyPrompts = [
     "Once upon a time, in a world where couples could travel through time...",
@@ -21,34 +26,115 @@ export function StoryBuilder({ onComplete, onExit }: StoryBuilderProps) {
     "The aliens landed and chose us as Earth's representatives because..."
   ]
 
-  const startStory = () => {
-    const randomPrompt = storyPrompts[Math.floor(Math.random() * storyPrompts.length)]
-    setStoryPrompt(randomPrompt)
-    setStory([randomPrompt])
+  useEffect(() => {
+    loadStorySession()
+    const interval = setInterval(loadStorySession, 1000) // Poll more frequently
+    return () => clearInterval(interval)
+  }, [])
+
+  const loadStorySession = async () => {
+    try {
+      const results = await api.getCoupleActivityResults('game', 'story_builder')
+      if (results.results) {
+        // Get the most recent story data from either user or partner
+        const userResponse = results.results.user.response
+        const partnerResponse = results.results.partner.response
+        
+        let latestStoryData = null
+        if (userResponse && partnerResponse) {
+          // Both have data, use the most recently updated
+          const userTime = new Date(userResponse.updatedAt || userResponse.startedAt || 0)
+          const partnerTime = new Date(partnerResponse.updatedAt || partnerResponse.startedAt || 0)
+          latestStoryData = userTime > partnerTime ? userResponse : partnerResponse
+        } else {
+          latestStoryData = userResponse || partnerResponse
+        }
+        
+        if (latestStoryData?.story) {
+          setStory(latestStoryData.story)
+          setStoryPrompt(latestStoryData.story[0] || '')
+          // Check if it's my turn based on currentTurn field
+          setIsMyTurn(latestStoryData.currentTurn === 'user')
+        }
+        setBothJoined(results.bothCompleted || (userResponse && partnerResponse))
+        setPartnerName(results.results.partner.name || 'Partner')
+      }
+    } catch (error) {
+      console.log('No existing story session')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const addToStory = () => {
-    if (currentInput.trim()) {
-      setStory([...story, currentInput.trim()])
+  const startStory = async () => {
+    const randomPrompt = storyPrompts[Math.floor(Math.random() * storyPrompts.length)]
+    const storyData = {
+      story: [randomPrompt],
+      currentTurn: 'user',
+      startedAt: new Date().toISOString()
+    }
+    
+    try {
+      await api.submitCoupleActivity('game', 'story_builder', storyData)
+      setStoryPrompt(randomPrompt)
+      setStory([randomPrompt])
+      setIsMyTurn(false) // Partner goes first after prompt
+      toast.success('Story started! Waiting for your partner to join...')
+    } catch (error) {
+      toast.error('Failed to start story')
+    }
+  }
+
+  const addToStory = async () => {
+    if (!currentInput.trim() || !isMyTurn) return
+    
+    const newStory = [...story, currentInput.trim()]
+    const storyData = {
+      story: newStory,
+      currentTurn: 'partner', // Switch turn to partner
+      lastAddedBy: 'user',
+      updatedAt: new Date().toISOString()
+    }
+    
+    try {
+      await api.submitCoupleActivity('game', 'story_builder', storyData)
+      setStory(newStory)
       setCurrentInput('')
-      setCurrentPlayer(currentPlayer === 1 ? 2 : 1)
+      setIsMyTurn(false)
+      toast.success('Added to story! Your partner\'s turn now.')
+    } catch (error) {
+      toast.error('Failed to add to story')
     }
   }
 
   const resetStory = () => {
     setStory([])
     setStoryPrompt('')
-    setCurrentPlayer(1)
+    setIsMyTurn(true)
     setCurrentInput('')
   }
 
-  const completeStory = () => {
-    onComplete({
-      gameType: 'story_builder',
-      story: story.join(' '),
-      totalSentences: story.length,
-      completed: true
-    })
+  const completeStory = async () => {
+    const storyData = {
+      story,
+      completed: true,
+      finalStory: story.join(' '),
+      totalParts: story.length,
+      completedAt: new Date().toISOString()
+    }
+    
+    try {
+      await api.submitCoupleActivity('game', 'story_builder', storyData)
+      onComplete({
+        gameType: 'story_builder',
+        story: story.join(' '),
+        totalSentences: story.length,
+        completed: true
+      })
+      toast.success('Story completed! What a creative collaboration!')
+    } catch (error) {
+      toast.error('Failed to complete story')
+    }
   }
 
   if (!storyPrompt) {
@@ -133,8 +219,16 @@ export function StoryBuilder({ onComplete, onExit }: StoryBuilderProps) {
 
         <div className="mb-6">
           <div className="bg-gradient-to-r from-orange-50 to-yellow-50 rounded-2xl p-4 mb-4">
-            <p className="text-sm text-gray-600 mb-1">Current Turn:</p>
-            <p className="font-bold text-orange-600">Player {currentPlayer}</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Current Turn:</p>
+                <p className="font-bold text-orange-600">{isMyTurn ? 'Your Turn' : `${partnerName}'s Turn`}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-orange-500" />
+                <span className="text-sm text-gray-600">{bothJoined ? 'Both Active' : 'Waiting for partner'}</span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -144,14 +238,16 @@ export function StoryBuilder({ onComplete, onExit }: StoryBuilderProps) {
             {story.map((sentence, index) => (
               <p
                 key={index}
-                className={`mb-2 ${
+                className={`mb-2 p-2 rounded-lg ${
                   index === 0 
-                    ? 'text-gray-600 italic' 
+                    ? 'text-gray-600 italic bg-gray-100' 
                     : index % 2 === 1 
-                      ? 'text-blue-700' 
-                      : 'text-purple-700'
+                      ? 'text-blue-700 bg-blue-50 border-l-4 border-blue-300' 
+                      : 'text-purple-700 bg-purple-50 border-l-4 border-purple-300'
                 }`}
               >
+                {index === 0 && <span className="text-xs text-gray-500 block mb-1">Story Prompt:</span>}
+                {index > 0 && <span className="text-xs text-gray-500 block mb-1">{index % 2 === 1 ? 'You:' : partnerName + ':'}</span>}
                 {sentence}
               </p>
             ))}
@@ -160,7 +256,7 @@ export function StoryBuilder({ onComplete, onExit }: StoryBuilderProps) {
 
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Add to the story (Player {currentPlayer}):
+            {isMyTurn ? 'Your turn - Add to the story:' : `Waiting for ${partnerName} to add to the story...`}
           </label>
           <div className="flex gap-2">
             <textarea
@@ -178,7 +274,7 @@ export function StoryBuilder({ onComplete, onExit }: StoryBuilderProps) {
             />
             <button
               onClick={addToStory}
-              disabled={!currentInput.trim()}
+              disabled={!currentInput.trim() || !isMyTurn}
               className="bg-orange-500 text-white p-3 rounded-xl hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Send className="w-5 h-5" />

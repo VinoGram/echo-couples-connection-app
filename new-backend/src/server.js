@@ -8,12 +8,19 @@ const compression = require('compression');
 require('dotenv').config();
 
 const { connectDB } = require('./utils/database');
+require('./models'); // Initialize model associations
+require('./models/CoupleActivity'); // Ensure CoupleActivity model is loaded
 const authRoutes = require('./routes/auth');
 const gameRoutes = require('./routes/games');
 const questionRoutes = require('./routes/questions');
 const userRoutes = require('./routes/users');
 const exerciseRoutes = require('./routes/exercises');
 const notificationRoutes = require('./routes/notifications');
+const coupleRoutes = require('./routes/couples');
+const chatRoutes = require('./routes/chat');
+const awardsRoutes = require('./routes/awards');
+const quizzesRoutes = require('./routes/quizzes');
+const coupleActivitiesRoutes = require('./routes/coupleActivities');
 const socketHandler = require('./services/socketHandler');
 
 const app = express();
@@ -26,7 +33,12 @@ const io = socketIo(server, {
 });
 
 // Connect to database
-connectDB();
+connectDB().then(async () => {
+  // Ensure CoupleActivity table exists
+  const CoupleActivity = require('./models/CoupleActivity');
+  await CoupleActivity.sync({ alter: true });
+  console.log('CoupleActivity table synced');
+}).catch(console.error);
 
 // Middleware
 app.use(helmet());
@@ -46,6 +58,11 @@ app.use('/api/questions', questionRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/exercises', exerciseRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/couples', coupleRoutes);
+app.use('/api/chat', chatRoutes);
+app.use('/api/awards', awardsRoutes);
+app.use('/api/quizzes', quizzesRoutes);
+app.use('/api/activities', coupleActivitiesRoutes);
 
 // Socket.io
 socketHandler(io);

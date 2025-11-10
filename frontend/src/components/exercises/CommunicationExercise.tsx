@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { MessageSquare, ArrowLeft, Send, CheckCircle } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { MessageSquare, ArrowLeft, Send, CheckCircle, Users, Heart } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../lib/api'
 
@@ -10,9 +10,12 @@ interface CommunicationExerciseProps {
 export function CommunicationExercise({ onBack }: CommunicationExerciseProps) {
   const [currentStep, setCurrentStep] = useState(0)
   const [responses, setResponses] = useState<string[]>([])
+  const [partnerResponses, setPartnerResponses] = useState<string[]>([])
   const [currentResponse, setCurrentResponse] = useState('')
   const [completed, setCompleted] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [partnerName, setPartnerName] = useState('Partner')
+  const [bothCompleted, setBothCompleted] = useState(false)
 
   const prompts = [
     {
@@ -41,6 +44,34 @@ export function CommunicationExercise({ onBack }: CommunicationExerciseProps) {
     }
   ]
 
+  useEffect(() => {
+    loadExerciseSession()
+    const interval = setInterval(loadExerciseSession, 2000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const loadExerciseSession = async () => {
+    try {
+      const results = await api.getCoupleActivityResults('exercise', 'communication_exercise')
+      if (results.results) {
+        if (results.results.user.response) {
+          const userData = results.results.user.response
+          setResponses(userData.responses?.map((r: any) => r.response) || [])
+          setCurrentStep(userData.responses?.length || 0)
+          setCompleted(userData.completed || false)
+        }
+        if (results.results.partner.response) {
+          const partnerData = results.results.partner.response
+          setPartnerResponses(partnerData.responses?.map((r: any) => r.response) || [])
+        }
+        setPartnerName(results.results.partner.name || 'Partner')
+        setBothCompleted(results.bothCompleted)
+      }
+    } catch (error) {
+      console.log('No existing exercise session')
+    }
+  }
+
   const handleSubmit = async () => {
     if (!currentResponse.trim()) {
       toast.error('Please write a response')
@@ -50,6 +81,25 @@ export function CommunicationExercise({ onBack }: CommunicationExerciseProps) {
     const newResponses = [...responses, currentResponse.trim()]
     setResponses(newResponses)
     setCurrentResponse('')
+
+    // Save progress immediately
+    try {
+      const exerciseData = {
+        type: 'communication_exercise',
+        responses: newResponses.map((response, index) => ({
+          prompt: prompts[index].prompt,
+          response,
+          timestamp: new Date().toISOString()
+        })),
+        currentStep: newResponses.length,
+        completed: newResponses.length === prompts.length,
+        updatedAt: new Date().toISOString()
+      }
+
+      await api.submitCoupleActivity('exercise', 'communication_exercise', exerciseData)
+    } catch (error) {
+      console.error('Failed to save progress:', error)
+    }
 
     if (currentStep < prompts.length - 1) {
       setCurrentStep(currentStep + 1)
@@ -68,12 +118,13 @@ export function CommunicationExercise({ onBack }: CommunicationExerciseProps) {
           response,
           timestamp: new Date().toISOString()
         })),
+        completed: true,
         completedAt: new Date().toISOString()
       }
 
-      await api.submitExerciseResult('communication', exerciseData)
+      await api.submitCoupleActivity('exercise', 'communication_exercise', exerciseData)
       setCompleted(true)
-      toast.success('Communication exercise completed! +10 XP earned')
+      toast.success('Communication exercise completed!')
     } catch (error) {
       toast.error('Failed to save exercise')
     } finally {
@@ -96,7 +147,7 @@ export function CommunicationExercise({ onBack }: CommunicationExerciseProps) {
           <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-800 mb-4">Exercise Complete!</h2>
           <p className="text-gray-600 mb-6">
-            Great job practicing healthy communication! Your responses have been saved for your partner to read.
+            Great job practicing healthy communication! {bothCompleted ? 'Both you and your partner have completed the exercise.' : 'Your responses are now visible to your partner.'}
           </p>
           
           <div className="bg-blue-50 rounded-2xl p-6 mb-6">
@@ -139,7 +190,13 @@ export function CommunicationExercise({ onBack }: CommunicationExerciseProps) {
         <div className="mb-6">
           <div className="flex justify-between items-center mb-4">
             <span className="text-sm text-gray-500">Step {currentStep + 1} of {prompts.length}</span>
-            <span className="text-sm font-medium text-blue-500">{currentPrompt.title}</span>
+            <div className="flex items-center gap-4">
+              <span className="text-sm font-medium text-blue-500">{currentPrompt.title}</span>
+              <div className="flex items-center gap-1 text-xs text-gray-500">
+                <Users className="w-3 h-3" />
+                {bothCompleted ? 'Both completed' : 'In progress'}
+              </div>
+            </div>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2">
             <div
@@ -180,17 +237,41 @@ export function CommunicationExercise({ onBack }: CommunicationExerciseProps) {
           </div>
         </div>
 
-        {responses.length > 0 && (
-          <div className="bg-gray-50 rounded-2xl p-4">
-            <h4 className="font-bold text-gray-800 mb-3">Your Previous Responses:</h4>
-            <div className="space-y-2">
-              {responses.map((response, index) => (
-                <div key={index} className="bg-white rounded-lg p-3">
-                  <div className="text-xs text-gray-500 mb-1">{prompts[index].prompt}</div>
-                  <div className="text-gray-700">{response}</div>
+        {(responses.length > 0 || partnerResponses.length > 0) && (
+          <div className="space-y-4">
+            {responses.length > 0 && (
+              <div className="bg-blue-50 rounded-2xl p-4">
+                <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-blue-500" />
+                  Your Responses:
+                </h4>
+                <div className="space-y-2">
+                  {responses.map((response, index) => (
+                    <div key={index} className="bg-white rounded-lg p-3">
+                      <div className="text-xs text-blue-600 mb-1 font-medium">{prompts[index].prompt}</div>
+                      <div className="text-gray-700">{response}</div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
+            
+            {partnerResponses.length > 0 && (
+              <div className="bg-pink-50 rounded-2xl p-4">
+                <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                  <Heart className="w-4 h-4 text-pink-500" />
+                  {partnerName}'s Responses:
+                </h4>
+                <div className="space-y-2">
+                  {partnerResponses.map((response, index) => (
+                    <div key={index} className="bg-white rounded-lg p-3">
+                      <div className="text-xs text-pink-600 mb-1 font-medium">{prompts[index].prompt}</div>
+                      <div className="text-gray-700">{response}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

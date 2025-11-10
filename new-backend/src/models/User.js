@@ -41,18 +41,23 @@ const User = sequelize.define('User', {
     defaultValue: {
       gamesPlayed: 0,
       totalScore: 0,
-      averageScore: 0
+      averageScore: 0,
+      totalXP: 0,
+      currentStreak: 0,
+      longestStreak: 0,
+      exercisesCompleted: 0,
+      lastActivityDate: null
     }
   }
 }, {
   timestamps: true,
   hooks: {
     beforeCreate: async (user) => {
-      user.password = await bcrypt.hash(user.password, 12);
+      user.password = await bcrypt.hash(user.password, parseInt(process.env.BCRYPT_SALT_ROUNDS) || 12);
     },
     beforeUpdate: async (user) => {
       if (user.changed('password')) {
-        user.password = await bcrypt.hash(user.password, 12);
+        user.password = await bcrypt.hash(user.password, parseInt(process.env.BCRYPT_SALT_ROUNDS) || 12);
       }
     }
   }
@@ -61,5 +66,13 @@ const User = sequelize.define('User', {
 User.prototype.comparePassword = async function(password) {
   return bcrypt.compare(password, this.password);
 };
+
+// Define associations
+User.associate = function(models) {
+  User.belongsTo(User, { as: 'Partner', foreignKey: 'partnerId' });
+};
+
+// Initialize association
+User.belongsTo(User, { as: 'Partner', foreignKey: 'partnerId' });
 
 module.exports = User;

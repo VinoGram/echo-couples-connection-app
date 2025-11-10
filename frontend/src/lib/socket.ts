@@ -10,7 +10,8 @@ class SocketManager {
     }
 
     this.token = token
-    this.socket = io('http://localhost:3001', {
+    const socketUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+    this.socket = io(socketUrl, {
       auth: { token }
     })
 
@@ -38,7 +39,10 @@ class SocketManager {
 
   sendMessage(content: string) {
     if (this.socket?.connected) {
+      console.log('Sending message:', content)
       this.socket.emit('send_message', { content })
+    } else {
+      console.log('Socket not connected, cannot send message')
     }
   }
 
@@ -56,7 +60,10 @@ class SocketManager {
 
   onNewMessage(callback: (message: any) => void) {
     if (this.socket) {
-      this.socket.on('new_message', callback)
+      this.socket.on('new_message', (message) => {
+        console.log('Received new message:', message)
+        callback(message)
+      })
     }
   }
 
@@ -72,11 +79,24 @@ class SocketManager {
     }
   }
 
+  notifyMessagesRead() {
+    if (this.socket?.connected) {
+      this.socket.emit('messages_read')
+    }
+  }
+
+  onMessagesRead(callback: (data: any) => void) {
+    if (this.socket) {
+      this.socket.on('messages_marked_read', callback)
+    }
+  }
+
   offAllListeners() {
     if (this.socket) {
       this.socket.off('new_message')
       this.socket.off('partner_typing')
       this.socket.off('partner_stopped_typing')
+      this.socket.off('messages_marked_read')
     }
   }
 

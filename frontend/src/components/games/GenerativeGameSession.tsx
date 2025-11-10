@@ -264,45 +264,36 @@ export function GenerativeGameSession({ onBack }: GenerativeGameSessionProps) {
         </div>
 
         <div className="space-y-4">
-          {question.type === 'this_or_that' && question.options?.map((option: string, index: number) => (
+          {/* Always show textarea for AI-generated questions */}
+          <div className="space-y-4">
+            <textarea
+              placeholder="Share your thoughts..."
+              className="w-full p-4 border border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none resize-none"
+              rows={4}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  const target = e.target as HTMLTextAreaElement
+                  if (target.value.trim()) {
+                    submitAnswer(target.value.trim())
+                    target.value = ''
+                  }
+                }
+              }}
+            />
             <button
-              key={index}
-              onClick={() => submitAnswer(option)}
-              className="w-full p-4 text-left bg-gray-50 hover:bg-purple-50 rounded-xl border border-gray-200 hover:border-purple-300 transition-all"
+              onClick={(e) => {
+                const textarea = e.currentTarget.parentElement?.querySelector('textarea') as HTMLTextAreaElement
+                if (textarea?.value.trim()) {
+                  submitAnswer(textarea.value.trim())
+                  textarea.value = ''
+                }
+              }}
+              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-3 px-6 rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all"
             >
-              {option}
+              Submit Answer
             </button>
-          ))}
-
-          {question.type === 'open_ended' && (
-            <div className="space-y-4">
-              <textarea
-                placeholder="Share your thoughts..."
-                className="w-full p-4 border border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none resize-none"
-                rows={4}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault()
-                    const target = e.target as HTMLTextAreaElement
-                    if (target.value.trim()) {
-                      submitAnswer(target.value.trim())
-                    }
-                  }
-                }}
-              />
-              <button
-                onClick={(e) => {
-                  const textarea = e.currentTarget.parentElement?.querySelector('textarea') as HTMLTextAreaElement
-                  if (textarea?.value.trim()) {
-                    submitAnswer(textarea.value.trim())
-                  }
-                }}
-                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-3 px-6 rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all"
-              >
-                Submit Answer
-              </button>
-            </div>
-          )}
+          </div>
         </div>
 
         {question.generated && (

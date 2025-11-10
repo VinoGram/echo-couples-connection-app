@@ -16,7 +16,7 @@ export default function App() {
   const [showCoupleSetup, setShowCoupleSetup] = useState(false)
 
   useEffect(() => {
-    const token = localStorage.getItem('auth_token')
+    const token = sessionStorage.getItem('auth_token')
     const urlParams = new URLSearchParams(window.location.search)
     const joinCode = urlParams.get('join')
     
@@ -47,7 +47,7 @@ export default function App() {
       console.error('Failed to load couple:', error)
       // If unauthorized, clear token and set as not authenticated
       if (error.message?.includes('Unauthorized')) {
-        localStorage.removeItem('auth_token')
+        sessionStorage.removeItem('auth_token')
         setIsAuthenticated(false)
       }
     } finally {
@@ -96,49 +96,52 @@ export default function App() {
           position="sticky"
           top={0}
           zIndex={50}
-          bg="rgba(255, 255, 255, 0.9)"
-          backdropFilter="blur(10px)"
+          bg="rgba(255, 255, 255, 0.95)"
+          backdropFilter="blur(20px)"
           borderBottom="1px"
-          borderColor="pink.100"
-          shadow="lg"
+          borderColor="rgba(236, 72, 153, 0.1)"
+          shadow="0 4px 32px rgba(236, 72, 153, 0.1)"
         >
-          <Box maxW="7xl" mx="auto" px={6} h={20} w="full">
+          <Box maxW="7xl" mx="auto" px={[4, 6]} h={[16, 20]} w="full">
             <Flex justify="space-between" align="center" h="full">
-              <HStack spacing={4}>
+              <HStack spacing={[3, 4]}>
                 <Box position="relative">
-                  <Box
-                    w={12}
-                    h={12}
-                    bg="linear-gradient(135deg, #ec4899, #8b5cf6)"
-                    borderRadius="2xl"
-                    display="flex"
-                    align="center"
-                    justify="center"
-                    shadow="lg"
-                  >
-                    <Text color="white" fontSize="xl">💕</Text>
-                  </Box>
-                  <Badge
-                    position="absolute"
-                    top={-1}
-                    right={-1}
-                    w={4}
-                    h={4}
-                    bg="green.400"
-                    borderRadius="full"
-                    border="2px"
-                    borderColor="white"
+                  <img 
+                    src="/logo.svg" 
+                    alt="Echo Logo" 
+                    style={{ width: '80px', height: '80px', objectFit: 'contain' }}
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none'
+                      e.currentTarget.nextElementSibling.style.display = 'block'
+                    }}
                   />
+                  <Text 
+                    color="gray.800" 
+                    fontSize={["2xl", "3xl"]} 
+                    fontWeight="bold"
+                    style={{ display: 'none' }}
+                  >
+                    E
+                  </Text>
+
                 </Box>
                 <VStack align="start" spacing={0}>
                   <Heading
-                    size="lg"
-                    bgGradient="linear(to-r, pink.600, purple.600)"
+                    size={["lg", "xl"]}
+                    bgGradient="linear(135deg, #ec4899 0%, #8b5cf6 50%, #ef4444 100%)"
                     bgClip="text"
+                    fontWeight="800"
+                    letterSpacing="tight"
                   >
                     Echo
                   </Heading>
-                  <Text fontSize="xs" color="gray.500">
+                  <Text 
+                    fontSize={["xs", "sm"]} 
+                    color="gray.500" 
+                    fontWeight="500"
+                    letterSpacing="wide"
+                    textTransform="uppercase"
+                  >
                     Couples Connection
                   </Text>
                 </VStack>
@@ -149,7 +152,7 @@ export default function App() {
         </Flex>
       )}
       <Box as="main" flex={1} position="relative" zIndex={10}>
-        <Box maxW="7xl" mx="auto" px={6} py={isAuthenticated ? 8 : 0}>
+        <Box maxW="7xl" mx="auto" px={[4, 6]} py={isAuthenticated ? [4, 8] : 0}>
           <Content 
             isAuthenticated={isAuthenticated}
             couple={couple}
@@ -192,45 +195,45 @@ function Content({ isAuthenticated, couple, loading, handleLogin, setCouple, sho
       {!isAuthenticated ? (
         <div className="min-h-screen flex items-center justify-center">
           <div className="max-w-4xl mx-auto text-center">
-            <div className="mb-12">
-              <div className="flex flex-col items-center mb-6">
-                <div className="w-20 h-20 bg-gradient-to-br from-pink-500 to-purple-500 rounded-3xl flex items-center justify-center animate-bounce shadow-2xl mb-4">
-                  <Heart className="w-10 h-10 text-white fill-white" />
+            <div className="mb-8 sm:mb-12">
+              <div className="flex flex-col items-center mb-4 sm:mb-6">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-pink-500 to-purple-500 rounded-2xl sm:rounded-3xl flex items-center justify-center animate-bounce shadow-2xl mb-3 sm:mb-4">
+                  <Heart className="w-8 h-8 sm:w-10 sm:h-10 text-white fill-white" />
                 </div>
-                <h1 className="text-7xl font-bold bg-gradient-to-r from-pink-500 via-rose-500 to-purple-500 bg-clip-text text-transparent">
+                <h1 className="text-4xl sm:text-7xl font-bold bg-gradient-to-r from-pink-500 via-rose-500 to-purple-500 bg-clip-text text-transparent">
                   Echo
                 </h1>
               </div>
-              <p className="text-3xl text-gray-700 mb-4 font-light">Go beyond "What's for dinner?"</p>
-              <p className="text-xl text-gray-600 mb-8">Deepen your connection, one question at a time</p>
+              <p className="text-xl sm:text-3xl text-gray-700 mb-3 sm:mb-4 font-light px-4">Go beyond "What's for dinner?"</p>
+              <p className="text-lg sm:text-xl text-gray-600 mb-6 sm:mb-8 px-4">Deepen your connection, one question at a time</p>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 max-w-3xl mx-auto">
-                <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
-                  <div className="w-12 h-12 bg-pink-500 rounded-xl flex items-center justify-center mb-3">
-                    <MessageCircle className="w-6 h-6 text-white" />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-8 sm:mb-12 max-w-3xl mx-auto px-4">
+                <div className="bg-white/60 backdrop-blur-sm rounded-xl sm:rounded-2xl p-4 sm:p-6 border border-white/20 shadow-lg">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-pink-500 rounded-lg sm:rounded-xl flex items-center justify-center mb-2 sm:mb-3">
+                    <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                   </div>
-                  <h3 className="font-semibold text-gray-800 mb-2">Daily Questions</h3>
-                  <p className="text-sm text-gray-600">Meaningful conversations every day</p>
+                  <h3 className="font-semibold text-gray-800 mb-1 sm:mb-2 text-sm sm:text-base">Daily Questions</h3>
+                  <p className="text-xs sm:text-sm text-gray-600">Meaningful conversations every day</p>
                 </div>
-                <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
-                  <div className="w-12 h-12 bg-rose-500 rounded-xl flex items-center justify-center mb-3">
-                    <Gamepad2 className="w-6 h-6 text-white" />
+                <div className="bg-white/60 backdrop-blur-sm rounded-xl sm:rounded-2xl p-4 sm:p-6 border border-white/20 shadow-lg">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-rose-500 rounded-lg sm:rounded-xl flex items-center justify-center mb-2 sm:mb-3">
+                    <Gamepad2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                   </div>
-                  <h3 className="font-semibold text-gray-800 mb-2">Fun Games</h3>
-                  <p className="text-sm text-gray-600">Play together, grow together</p>
+                  <h3 className="font-semibold text-gray-800 mb-1 sm:mb-2 text-sm sm:text-base">Fun Games</h3>
+                  <p className="text-xs sm:text-sm text-gray-600">Play together, grow together</p>
                 </div>
-                <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
-                  <div className="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center mb-3">
-                    <TrendingUp className="w-6 h-6 text-white" />
+                <div className="bg-white/60 backdrop-blur-sm rounded-xl sm:rounded-2xl p-4 sm:p-6 border border-white/20 shadow-lg">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-500 rounded-lg sm:rounded-xl flex items-center justify-center mb-2 sm:mb-3">
+                    <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                   </div>
-                  <h3 className="font-semibold text-gray-800 mb-2">Track Progress</h3>
-                  <p className="text-sm text-gray-600">Level up your relationship</p>
+                  <h3 className="font-semibold text-gray-800 mb-1 sm:mb-2 text-sm sm:text-base">Track Progress</h3>
+                  <p className="text-xs sm:text-sm text-gray-600">Level up your relationship</p>
                 </div>
               </div>
             </div>
             
-            <div className="max-w-md mx-auto">
-              <div className="bg-white/80 backdrop-blur-sm rounded-3xl p-8 shadow-2xl border border-white/20">
+            <div className="max-w-md mx-auto px-4">
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl sm:rounded-3xl p-6 sm:p-8 shadow-2xl border border-white/20">
                 <SignInForm onLogin={handleLogin} />
               </div>
             </div>
@@ -238,16 +241,16 @@ function Content({ isAuthenticated, couple, loading, handleLogin, setCouple, sho
         </div>
       ) : (
         <>
-          <Dashboard couple={couple} onCoupleSetup={() => setShowCoupleSetup(true)} />
+          <Dashboard couple={couple} onCoupleSetup={() => setShowCoupleSetup(true)} setCouple={setCouple} />
           {showCoupleSetup && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-                <div className="p-6">
-                  <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-2xl font-bold">Connect with Partner</h2>
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
+              <div className="bg-white rounded-2xl sm:rounded-3xl max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+                <div className="p-4 sm:p-6">
+                  <div className="flex justify-between items-center mb-3 sm:mb-4">
+                    <h2 className="text-xl sm:text-2xl font-bold">Connect with Partner</h2>
                     <button 
                       onClick={() => setShowCoupleSetup(false)}
-                      className="text-gray-500 hover:text-gray-700 text-2xl"
+                      className="text-gray-500 hover:text-gray-700 text-xl sm:text-2xl p-1"
                     >
                       ×
                     </button>

@@ -29,9 +29,15 @@ export function CoupleSetup({ couple, onCoupleUpdate }: CoupleSetupProps) {
       const result = await api.createCouple();
       const inviteLink = `${window.location.origin}?join=${result.connectionCode}`;
       toast.success(`Room created! Share the link to invite anyone.`);
-      const updatedCouple = await api.getCurrentCouple();
-      onCoupleUpdate(updatedCouple);
+      try {
+        const updatedCouple = await api.getCurrentCouple();
+        onCoupleUpdate(updatedCouple);
+      } catch (coupleError) {
+        console.warn('Failed to get current couple:', coupleError);
+        onCoupleUpdate({ connectionCode: result.connectionCode, isComplete: false });
+      }
     } catch (error) {
+      console.error('Create couple error:', error);
       toast.error("Failed to create room");
     } finally {
       setIsCreating(false);
@@ -115,9 +121,15 @@ export function CoupleSetup({ couple, onCoupleUpdate }: CoupleSetupProps) {
     try {
       await api.joinCouple(connectionCode.trim());
       toast.success("Successfully connected to your partner!");
-      const updatedCouple = await api.getCurrentCouple();
-      onCoupleUpdate(updatedCouple);
+      try {
+        const updatedCouple = await api.getCurrentCouple();
+        onCoupleUpdate(updatedCouple);
+      } catch (coupleError) {
+        console.warn('Failed to get current couple:', coupleError);
+        onCoupleUpdate({ isComplete: true });
+      }
     } catch (error) {
+      console.error('Join couple error:', error);
       toast.error("Invalid connection code or connection failed");
     } finally {
       setIsJoining(false);
@@ -141,7 +153,7 @@ export function CoupleSetup({ couple, onCoupleUpdate }: CoupleSetupProps) {
         </p>
       </div>
 
-      {couple && !couple.isComplete ? (
+      {couple && couple.connectionCode && !couple.isComplete ? (
         <div className="bg-white rounded-2xl p-8 shadow-lg border border-pink-100 mb-8">
           <div className="mb-6">
             <h2 className="text-2xl font-semibold text-gray-800 mb-2">

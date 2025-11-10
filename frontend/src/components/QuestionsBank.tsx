@@ -32,7 +32,11 @@ const categoryColors = {
   fun: 'from-yellow-500 to-amber-500'
 }
 
-export function QuestionsBank() {
+interface QuestionsBankProps {
+  onQuestionSelect?: (question: string) => void;
+}
+
+export function QuestionsBank({ onQuestionSelect }: QuestionsBankProps = {}) {
   const [questions, setQuestions] = useState<Question[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [selectedDepth, setSelectedDepth] = useState<string>('all')
@@ -152,7 +156,8 @@ export function QuestionsBank() {
             return (
               <div
                 key={question.id}
-                className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300 hover:scale-105"
+                onClick={() => onQuestionSelect?.(question.text)}
+                className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300 hover:scale-105 cursor-pointer group"
               >
                 <div className="flex items-start gap-4">
                   <div className={`w-12 h-12 bg-gradient-to-br ${colorClass} rounded-xl flex items-center justify-center flex-shrink-0`}>
@@ -171,9 +176,12 @@ export function QuestionsBank() {
                         {question.depth === 'light' ? 'Light & Fun' : 'Deep & Meaningful'}
                       </span>
                     </div>
-                    <p className="text-gray-800 font-medium leading-relaxed">
+                    <p className="text-gray-800 font-medium leading-relaxed group-hover:text-pink-600 transition-colors">
                       {question.text}
                     </p>
+                    <div className="mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span className="text-xs text-pink-500 font-medium">💬 Click to start conversation</span>
+                    </div>
                   </div>
                 </div>
               </div>

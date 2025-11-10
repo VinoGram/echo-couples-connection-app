@@ -6,6 +6,7 @@ import { Bell, BellOff, Clock, Heart, Zap, Trophy, Settings } from 'lucide-react
 interface NotificationPreferences {
   dailyQuestion: boolean
   partnerAnswered: boolean
+  partnerActivityCompleted: boolean
   streakMilestones: boolean
   newUnlocks: boolean
   preferredTime: 'morning' | 'afternoon' | 'evening'
@@ -16,6 +17,7 @@ export function NotificationSettings() {
   const [preferences, setPreferences] = useState<NotificationPreferences>({
     dailyQuestion: true,
     partnerAnswered: true,
+    partnerActivityCompleted: true,
     streakMilestones: true,
     newUnlocks: true,
     preferredTime: 'evening',
@@ -64,6 +66,7 @@ export function NotificationSettings() {
       setPreferences({
         dailyQuestion: false,
         partnerAnswered: false,
+        partnerActivityCompleted: false,
         streakMilestones: false,
         newUnlocks: false,
         preferredTime: 'evening',
@@ -170,6 +173,29 @@ export function NotificationSettings() {
                 <span
                   className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
                     preferences.partnerAnswered && preferences.enabled ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-2xl">
+              <div className="flex items-center gap-3">
+                <Heart className="w-5 h-5 text-green-500" />
+                <div>
+                  <h3 className="font-semibold text-gray-800">Partner Activity Completed</h3>
+                  <p className="text-sm text-gray-600">When your partner completes games, quizzes, or exercises</p>
+                </div>
+              </div>
+              <button
+                onClick={() => handleToggle('partnerActivityCompleted', !preferences.partnerActivityCompleted)}
+                disabled={saving || !preferences.enabled}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  preferences.partnerActivityCompleted && preferences.enabled ? 'bg-pink-500' : 'bg-gray-300'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    preferences.partnerActivityCompleted && preferences.enabled ? 'translate-x-6' : 'translate-x-1'
                   }`}
                 />
               </button>

@@ -29,9 +29,10 @@ export function SignInForm({ onLogin }: SignInFormProps) {
           setSubmitting(false);
           return;
         }
-        result = await api.register(email, password, selectedGender);
+        const username = `${selectedGender}_${Date.now()}`; // Generate unique username
+        result = await api.register(email, password, username);
       }
-      localStorage.setItem('userId', result.user.id);
+      sessionStorage.setItem('userId', result.user.id);
       toast.success(flow === "signIn" ? "Signed in successfully!" : "Account created successfully!");
       onLogin();
     } catch (error) {

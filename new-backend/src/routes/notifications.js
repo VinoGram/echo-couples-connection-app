@@ -6,21 +6,104 @@ const User = require('../models/User');
 
 const router = express.Router();
 
+// Test endpoint
+router.get('/test', (req, res) => {
+  res.json({ message: 'Notifications route working' });
+});
+
+// Get notification settings
+router.get('/settings', auth, async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id);
+    const notifications = user.preferences?.notifications || {};
+    
+    const preferences = {
+      dailyQuestion: notifications.dailyQuestion !== false,
+      partnerAnswered: notifications.partnerAnswered !== false,
+      partnerActivityCompleted: notifications.partnerActivityCompleted !== false,
+      streakMilestones: notifications.streakMilestones !== false,
+      newUnlocks: notifications.newUnlocks !== false,
+      preferredTime: notifications.preferredTime || 'evening',
+      enabled: notifications.enabled !== false
+    };
+    
+    res.json({ preferences });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update notification settings
+router.put('/settings', auth, async (req, res) => {
+  try {
+    const preferences = req.body;
+    const user = await User.findByPk(req.user.id);
+    
+    const updatedPreferences = {
+      ...user.preferences,
+      notifications: preferences
+    };
+    
+    await user.update({ preferences: updatedPreferences });
+    res.json({ success: true, preferences });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Unsubscribe from all notifications
+router.delete('/settings', auth, async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id);
+    
+    const updatedPreferences = {
+      ...user.preferences,
+      notifications: {
+        dailyQuestion: false,
+        partnerAnswered: false,
+        partnerActivityCompleted: false,
+        streakMilestones: false,
+        newUnlocks: false,
+        preferredTime: 'evening',
+        enabled: false
+      }
+    };
+    
+    await user.update({ preferences: updatedPreferences });
+    res.json({ success: true, message: 'Unsubscribed from all notifications' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Send partner invitation
 router.post('/invite-partner', auth, async (req, res) => {
   try {
     const { email, phoneNumber, senderName, connectionCode } = req.body;
+    
+    // Input validation
+    if (!senderName || !connectionCode) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
+    if (!email && !phoneNumber) {
+      return res.status(400).json({ error: 'Email or phone number required' });
+    }
     
     const results = {};
     
     // Send email invitation
     if (email) {
       try {
-        await emailService.sendPartnerInvitation(email, senderName, connectionCode);
-        results.email = 'sent';
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          results.email = 'invalid';
+        } else {
+          await emailService.sendPartnerInvitation(email, senderName, connectionCode);
+          results.email = 'sent';
+        }
       } catch (error) {
         results.email = 'failed';
-        console.error('Email invitation failed:', error);
+        console.error('Email invitation failed:', error.message);
       }
     }
     
@@ -32,13 +115,14 @@ router.post('/invite-partner', auth, async (req, res) => {
         results.whatsapp = 'sent';
       } catch (error) {
         results.whatsapp = 'failed';
-        console.error('WhatsApp invitation failed:', error);
+        console.error('WhatsApp invitation failed:', error.message);
       }
     }
     
     res.json({ success: true, results });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Invite partner error:', error);
+    res.status(500).json({ error: 'Failed to send invitation' });
   }
 });
 
@@ -46,6 +130,10 @@ router.post('/invite-partner', auth, async (req, res) => {
 router.post('/daily-reminder', auth, async (req, res) => {
   try {
     const user = await User.findByPk(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
     const partner = user.partnerId ? await User.findByPk(user.partnerId) : null;
     
     if (!partner) {
@@ -61,6 +149,7 @@ router.post('/daily-reminder', auth, async (req, res) => {
         results.email = 'sent';
       } catch (error) {
         results.email = 'failed';
+        console.error('Email reminder failed:', error.message);
       }
     }
     
@@ -72,12 +161,14 @@ router.post('/daily-reminder', auth, async (req, res) => {
         results.whatsapp = 'sent';
       } catch (error) {
         results.whatsapp = 'failed';
+        console.error('WhatsApp reminder failed:', error.message);
       }
     }
     
     res.json({ success: true, results });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Daily reminder error:', error);
+    res.status(500).json({ error: 'Failed to send reminder' });
   }
 });
 
@@ -85,9 +176,18 @@ router.post('/daily-reminder', auth, async (req, res) => {
 router.post('/game-invite', auth, async (req, res) => {
   try {
     const { gameType, partnerId } = req.body;
-    const user = await User.findByPk(req.user.id);
-    const partner = await User.findByPk(partnerId);
     
+    // Input validation
+    if (!gameType || !partnerId) {
+      return res.status(400).json({ error: 'Game type and partner ID required' });
+    }
+    
+    const user = await User.findByPk(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const partner = await User.findByPk(partnerId);
     if (!partner) {
       return res.status(404).json({ error: 'Partner not found' });
     }
@@ -102,12 +202,14 @@ router.post('/game-invite', auth, async (req, res) => {
         results.whatsapp = 'sent';
       } catch (error) {
         results.whatsapp = 'failed';
+        console.error('Game invite failed:', error.message);
       }
     }
     
     res.json({ success: true, results });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Game invite error:', error);
+    res.status(500).json({ error: 'Failed to send game invite' });
   }
 });
 
@@ -151,9 +253,22 @@ router.post('/game-result', auth, async (req, res) => {
 router.post('/appreciation', auth, async (req, res) => {
   try {
     const { appreciation, partnerId } = req.body;
-    const user = await User.findByPk(req.user.id);
-    const partner = await User.findByPk(partnerId);
     
+    // Input validation
+    if (!appreciation || !partnerId) {
+      return res.status(400).json({ error: 'Appreciation message and partner ID required' });
+    }
+    
+    if (typeof appreciation !== 'string' || appreciation.length > 500) {
+      return res.status(400).json({ error: 'Invalid appreciation message' });
+    }
+    
+    const user = await User.findByPk(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const partner = await User.findByPk(partnerId);
     if (!partner) {
       return res.status(404).json({ error: 'Partner not found' });
     }
@@ -168,12 +283,14 @@ router.post('/appreciation', auth, async (req, res) => {
         results.whatsapp = 'sent';
       } catch (error) {
         results.whatsapp = 'failed';
+        console.error('Appreciation notification failed:', error.message);
       }
     }
     
     res.json({ success: true, results });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Appreciation error:', error);
+    res.status(500).json({ error: 'Failed to send appreciation' });
   }
 });
 

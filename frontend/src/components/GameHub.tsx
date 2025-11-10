@@ -12,6 +12,7 @@ import { RelationshipGoals } from './games/RelationshipGoals'
 import { StoryBuilder } from './games/StoryBuilder'
 import { AdaptiveGameSession } from './games/AdaptiveGameSession'
 import { GenerativeGameSession } from './games/GenerativeGameSession'
+import { CoupleResults } from './CoupleResults'
 
 export function GameHub() {
   const [activeGame, setActiveGame] = useState<string | null>(null)
@@ -21,19 +22,19 @@ export function GameHub() {
   const games = [
     {
       id: 'adaptive_session',
-      title: 'AI-Powered Game',
-      description: 'Personalized questions that adapt to your relationship using machine learning',
-      icon: Zap,
+      title: 'Smart Compatibility Quiz',
+      description: 'AI analyzes your past answers to create the perfect compatibility assessment',
+      icon: Brain,
       color: 'from-cyan-500 to-blue-500',
-      example: 'Questions selected just for you based on your history'
+      example: 'Questions that get smarter based on how you both respond'
     },
     {
       id: 'generative_session',
-      title: 'AI Question Generator',
-      description: 'Brand new questions created in real-time by AI based on your relationship',
+      title: 'Creative Question Lab',
+      description: 'AI creates completely original questions that have never been asked before',
       icon: Zap,
       color: 'from-purple-500 to-pink-500',
-      example: 'Completely unique questions generated just for you'
+      example: 'Fresh, unique questions crafted just for your relationship dynamic'
     },
     {
       id: 'this_or_that',
@@ -118,6 +119,7 @@ export function GameHub() {
   const submitGameResult = async (gameType: string, data: any) => {
     try {
       await api.submitGameResult(gameType, data)
+      await api.submitCoupleActivity('game', gameType, data)
       toast.success('Game completed! XP earned!')
       setActiveGame(null)
       setGameData(null)
@@ -214,6 +216,17 @@ export function GameHub() {
     )
   }
 
+  if (activeGame?.startsWith('results_')) {
+    const gameId = activeGame.replace('results_', '')
+    return (
+      <CoupleResults
+        activityType="game"
+        activityName={gameId}
+        onBack={() => setActiveGame(null)}
+      />
+    )
+  }
+
   if (activeGame) {
     return (
       <div className="text-center space-y-6">
@@ -263,46 +276,54 @@ export function GameHub() {
         </div>
       </div>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {games.map((game) => {
           const IconComponent = game.icon
           return (
             <div
               key={game.id}
-              className="bg-white rounded-3xl p-6 shadow-xl border border-gray-100 hover:shadow-2xl transition-all duration-300 hover:scale-105"
+              className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-xl border border-gray-100 hover:shadow-2xl transition-all duration-300 hover:scale-105"
             >
-              <div className="flex items-center gap-4 mb-4">
-                <div className={`w-16 h-16 bg-gradient-to-br ${game.color} rounded-2xl flex items-center justify-center`}>
-                  <IconComponent className="w-8 h-8 text-white" />
+              <div className="flex items-center gap-3 sm:gap-4 mb-4">
+                <div className={`w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br ${game.color} rounded-xl sm:rounded-2xl flex items-center justify-center`}>
+                  <IconComponent className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold text-gray-800">{game.title}</h3>
-                  <p className="text-gray-600 text-sm">{game.description}</p>
+                <div className="flex-1">
+                  <h3 className="text-lg sm:text-xl font-bold text-gray-800">{game.title}</h3>
+                  <p className="text-gray-600 text-xs sm:text-sm hidden sm:block">{game.description}</p>
                 </div>
               </div>
 
-              <div className="bg-gray-50 rounded-2xl p-4 mb-6">
-                <p className="text-sm text-gray-600 mb-2">Example:</p>
-                <p className="font-medium text-gray-800">"{game.example}"</p>
+              <div className="bg-gray-50 rounded-xl sm:rounded-2xl p-3 sm:p-4 mb-4 sm:mb-6">
+                <p className="text-xs sm:text-sm text-gray-600 mb-1 sm:mb-2">Example:</p>
+                <p className="font-medium text-gray-800 text-sm sm:text-base">"{game.example}"</p>
               </div>
 
-              <button
-                onClick={() => startGame(game.id)}
-                disabled={loading}
-                className={`w-full bg-gradient-to-r ${game.color} text-white font-bold py-3 px-6 rounded-xl hover:shadow-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:transform-none`}
-              >
-                {loading ? (
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>Starting...</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center gap-2">
-                    <Gamepad2 className="w-5 h-5" />
-                    <span>Start Game</span>
-                  </div>
-                )}
-              </button>
+              <div className="space-y-2">
+                <button
+                  onClick={() => startGame(game.id)}
+                  disabled={loading}
+                  className={`w-full bg-gradient-to-r ${game.color} text-white font-bold py-2 sm:py-3 px-4 sm:px-6 rounded-lg sm:rounded-xl hover:shadow-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:transform-none text-sm sm:text-base`}
+                >
+                  {loading ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Starting...</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center gap-2">
+                      <Gamepad2 className="w-5 h-5" />
+                      <span>Start Game</span>
+                    </div>
+                  )}
+                </button>
+                <button
+                  onClick={() => setActiveGame(`results_${game.id}`)}
+                  className="w-full bg-gray-100 text-gray-700 font-medium py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors text-sm"
+                >
+                  View Results
+                </button>
+              </div>
             </div>
           )
         })}

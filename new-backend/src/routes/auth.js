@@ -5,6 +5,7 @@ const { Op } = require('sequelize');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
 
+
 const router = express.Router();
 
 const registerSchema = Joi.object({
@@ -35,7 +36,29 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'User already exists' });
     }
 
-    const user = await User.create({ email, username, password });
+    const user = await User.create({ 
+      email, 
+      username, 
+      password,
+      stats: {
+        gamesPlayed: 0,
+        totalScore: 0,
+        averageScore: 0,
+        totalXP: 100, // Starting XP
+        currentStreak: 0,
+        longestStreak: 0,
+        exercisesCompleted: 0,
+        lastActivityDate: new Date().toDateString()
+      }
+    });
+
+    // Send welcome email
+    try {
+      const emailService = require('../services/emailService');
+      await emailService.sendWelcomeEmail(email, username);
+    } catch (emailError) {
+      console.error('Failed to send welcome email:', emailError);
+    }
 
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
     
@@ -64,6 +87,21 @@ router.post('/login', async (req, res) => {
     const user = await User.findOne({ where: { email } });
     if (!user || !(await user.comparePassword(password))) {
       return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // Update last login and send login notification
+    const now = new Date();
+    const lastLogin = user.updatedAt;
+    const daysSinceLogin = Math.floor((now.getTime() - lastLogin.getTime()) / (1000 * 60 * 60 * 24));
+    
+    await user.update({ updatedAt: now });
+    
+    // Send login notification email
+    try {
+      const emailService = require('../services/emailService');
+      await emailService.sendLoginNotification(email, user.username, now);
+    } catch (emailError) {
+      console.error('Failed to send login notification:', emailError);
     }
 
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
