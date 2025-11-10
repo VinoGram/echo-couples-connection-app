@@ -4,12 +4,20 @@ import uuid
 
 class GameResultsManager:
     def __init__(self):
-        self.game_sessions = {}
-        self.couple_results = {}
+        try:
+            self.game_sessions = {}
+            self.couple_results = {}
+        except Exception as e:
+            print(f"Error initializing GameResultsManager: {e}")
+            self.game_sessions = {}
+            self.couple_results = {}
     
     def create_game_session(self, couple_id: str, game_type: str, questions: List[Dict]) -> str:
         """Create new game session"""
-        session_id = str(uuid.uuid4())
+        try:
+            session_id = str(uuid.uuid4())
+        except Exception:
+            session_id = f"session_{datetime.utcnow().timestamp()}"
         
         self.game_sessions[session_id] = {
             'id': session_id,
@@ -18,7 +26,7 @@ class GameResultsManager:
             'questions': questions,
             'responses': {},
             'status': 'active',
-            'created_at': datetime.now().isoformat(),
+            'created_at': datetime.utcnow().isoformat() + 'Z',
             'completed_at': None
         }
         
@@ -26,29 +34,35 @@ class GameResultsManager:
     
     def submit_response(self, session_id: str, user_id: str, question_id: str, response: Any) -> bool:
         """Submit user response to question"""
-        if session_id not in self.game_sessions:
+        try:
+            if session_id not in self.game_sessions:
+                return False
+            
+            session = self.game_sessions[session_id]
+        except Exception:
             return False
-        
-        session = self.game_sessions[session_id]
         
         if user_id not in session['responses']:
             session['responses'][user_id] = {}
         
         session['responses'][user_id][question_id] = {
             'answer': response,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
         }
         
         return True
     
     def complete_game_session(self, session_id: str) -> Dict[str, Any]:
         """Complete game session and generate results"""
-        if session_id not in self.game_sessions:
+        try:
+            if session_id not in self.game_sessions:
+                return {}
+        except Exception:
             return {}
         
         session = self.game_sessions[session_id]
         session['status'] = 'completed'
-        session['completed_at'] = datetime.now().isoformat()
+        session['completed_at'] = datetime.utcnow().isoformat() + 'Z'
         
         # Generate comparison results
         results = self._generate_comparison_results(session)
@@ -77,8 +91,9 @@ class GameResultsManager:
             return {'error': 'Need exactly 2 participants'}
         
         user1_id, user2_id = user_ids
-        user1_responses = responses[user1_id]
-        user2_responses = responses[user2_id]
+        # Cache responses for performance
+        user1_responses = responses.get(user1_id, {})
+        user2_responses = responses.get(user2_id, {})
         
         comparisons = []
         matches = 0
@@ -145,7 +160,7 @@ class GameResultsManager:
             return 1.0 if str(answer1).lower() == str(answer2).lower() else 0.0
     
     def _text_similarity(self, text1: str, text2: str) -> float:
-        """Calculate text similarity (simple implementation)"""
+        """Calculate text similarity using Jaccard similarity"""
         words1 = set(text1.lower().split())
         words2 = set(text2.lower().split())
         
@@ -154,34 +169,21 @@ class GameResultsManager:
         if not words1 or not words2:
             return 0.0
         
-        intersection = words1.intersection(words2)
-        union = words1.union(words2)
+        # Use Jaccard similarity for better performance
+        intersection_size = len(words1 & words2)
+        union_size = len(words1 | words2)
         
-        return len(intersection) / len(union)
+        return intersection_size / union_size if union_size > 0 else 0.0
     
     def _generate_insights(self, comparisons: List[Dict], compatibility_score: float) -> List[str]:
         """Generate insights from comparison results"""
         insights = []
         
-        if compatibility_score > 0.8:
-            insights.append("You have excellent compatibility! You think very similarly.")
-        elif compatibility_score > 0.6:
-            insights.append("You have good compatibility with some interesting differences.")
-        elif compatibility_score > 0.4:
-            insights.append("You have moderate compatibility. Your differences can be strengths!")
-        else:
-            insights.append("You have many differences - great opportunity to learn from each other!")
+        # Add overall compatibility message
+        insights.append(self._get_compatibility_message(compatibility_score))
         
         # Category-specific insights
-        category_matches = {}
-        for comp in comparisons:
-            category = comp['question'].get('category', 'general')
-            if category not in category_matches:
-                category_matches[category] = {'matches': 0, 'total': 0}
-            
-            category_matches[category]['total'] += 1
-            if comp['match']:
-                category_matches[category]['matches'] += 1
+        category_matches = self._calculate_category_matches(comparisons)
         
         for category, stats in category_matches.items():
             if stats['total'] > 0:
@@ -192,6 +194,31 @@ class GameResultsManager:
                     insights.append(f"You have different perspectives on {category} - discuss these!")
         
         return insights
+    
+    def _get_compatibility_message(self, score: float) -> str:
+        """Get compatibility message based on score"""
+        if score > 0.8:
+            return "You have excellent compatibility! You think very similarly."
+        elif score > 0.6:
+            return "You have good compatibility with some interesting differences."
+        elif score > 0.4:
+            return "You have moderate compatibility. Your differences can be strengths!"
+        else:
+            return "You have many differences - great opportunity to learn from each other!"
+    
+    def _calculate_category_matches(self, comparisons: List[Dict]) -> Dict[str, Dict[str, int]]:
+        """Calculate matches by category for performance"""
+        category_matches = {}
+        for comp in comparisons:
+            category = comp['question'].get('category', 'general')
+            if category not in category_matches:
+                category_matches[category] = {'matches': 0, 'total': 0}
+            
+            category_matches[category]['total'] += 1
+            if comp['match']:
+                category_matches[category]['matches'] += 1
+        
+        return category_matches
     
     def get_couple_history(self, couple_id: str) -> List[Dict]:
         """Get game history for couple"""

@@ -3,14 +3,26 @@ from sqlalchemy import create_engine, Column, String, Float, DateTime, JSON, Int
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
+from dotenv import load_dotenv
+import logging
 
-DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://user:pass@localhost/echo')
+# Load environment variables
+load_dotenv()
 
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+try:
+    DATABASE_URL = os.getenv('DATABASE_URL')
+    if not DATABASE_URL:
+        DATABASE_URL = 'postgresql://user:pass@localhost/echo'
+        logging.warning("Using default DATABASE_URL - configure for production")
+except Exception as e:
+    logging.error(f"Database URL configuration error: {e}")
+    DATABASE_URL = 'postgresql://user:pass@localhost/echo'
+
+# Configure engine with SSL for Neon
 Base = declarative_base()
 
 class UserPerformance(Base):
+    """Model for storing user performance data in games"""
     __tablename__ = "user_performance"
     
     id = Column(Integer, primary_key=True, index=True)
@@ -34,12 +46,42 @@ class CompatibilityAnalysis(Base):
     category_scores = Column(JSON)
     analysis_date = Column(DateTime, default=datetime.utcnow)
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+try:
+    if DATABASE_URL:
+        ssl_args = {"sslmode": "require"} if "neon.tech" in DATABASE_URL else {}
+        engine = create_engine(DATABASE_URL, connect_args=ssl_args)
+        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+        DB_AVAILABLE = True
+    else:
+        raise ValueError("No database URL available")
+except Exception as e:
+    logging.warning(f"Database connection failed: {e}")
+    engine = None
+    SessionLocal = None
+    DB_AVAILABLE = False
 
-# Create tables
-Base.metadata.create_all(bind=engine)
+def get_db():
+    """Get database session with error handling"""
+    if not DB_AVAILABLE or not SessionLocal:
+        return None
+    try:
+        db = SessionLocal()
+        yield db
+    except Exception as e:
+        logging.error(f"Database session error: {e}")
+        yield None
+    finally:
+        if 'db' in locals():
+            db.close()
+
+# Create tables only if database is available
+def create_tables():
+    """Create database tables if connection is available"""
+    if DB_AVAILABLE and Base and engine:
+        try:
+            Base.metadata.create_all(bind=engine)
+            logging.info("Database tables created successfully")
+        except Exception as e:
+            logging.warning(f"Failed to create tables: {e}")
+
+create_tables()

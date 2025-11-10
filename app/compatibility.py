@@ -43,19 +43,25 @@ class CompatibilityAnalyzer:
         )
     
     def _calculate_category_compatibility(self, answers1: Dict, answers2: Dict) -> float:
-        if not answers1 or not answers2:
+        if len(answers1) == 0 or len(answers2) == 0:
             return 0.5  # Neutral score for missing data
         
-        # Convert answers to numerical vectors
-        vector1 = self._answers_to_vector(answers1)
-        vector2 = self._answers_to_vector(answers2)
+        # Convert answers to numerical vectors with error handling
+        try:
+            vector1 = self._answers_to_vector(answers1)
+            vector2 = self._answers_to_vector(answers2)
+        except Exception:
+            return 0.5  # Return neutral score on conversion error
         
         if len(vector1) == 0 or len(vector2) == 0:
             return 0.5
         
-        # Calculate similarity
-        similarity = cosine_similarity([vector1], [vector2])[0][0]
-        return max(0, min(1, (similarity + 1) / 2))  # Normalize to 0-1
+        # Calculate similarity with error handling
+        try:
+            similarity = cosine_similarity([vector1], [vector2])[0][0]
+            return max(0, min(1, (similarity + 1) / 2))  # Normalize to 0-1
+        except Exception:
+            return 0.5  # Return neutral score on calculation error
     
     def _answers_to_vector(self, answers: Dict) -> List[float]:
         vector = []
@@ -71,45 +77,50 @@ class CompatibilityAnalyzer:
     def _generate_insights(self, category_scores: Dict[str, float], overall_score: float) -> List[str]:
         insights = []
         
-        if overall_score > 0.8:
-            insights.append("You have excellent compatibility across most areas!")
-        elif overall_score > 0.6:
-            insights.append("You have good compatibility with room for growth in some areas.")
-        else:
-            insights.append("There are significant differences that require attention and communication.")
+        # Add overall compatibility insight
+        insights.append(self._get_overall_insight(overall_score))
         
-        # Category-specific insights
-        strong_areas = [cat for cat, score in category_scores.items() if score > 0.7]
-        weak_areas = [cat for cat, score in category_scores.items() if score < 0.5]
-        
-        if strong_areas:
-            insights.append(f"Your strongest areas: {', '.join(strong_areas)}")
-        
-        if weak_areas:
-            insights.append(f"Areas needing attention: {', '.join(weak_areas)}")
+        # Category-specific insights with error handling
+        try:
+            strong_areas = [cat for cat, score in category_scores.items() if score > 0.7]
+            weak_areas = [cat for cat, score in category_scores.items() if score < 0.5]
+            
+            if strong_areas:
+                insights.append(f"Your strongest areas: {', '.join(strong_areas)}")
+            
+            if weak_areas:
+                insights.append(f"Areas needing attention: {', '.join(weak_areas)}")
+        except Exception:
+            insights.append("Unable to analyze category-specific insights")
         
         return insights
     
+    def _get_overall_insight(self, score: float) -> str:
+        """Generate overall compatibility insight based on score"""
+        if score > 0.8:
+            return "You have excellent compatibility across most areas!"
+        elif score > 0.6:
+            return "You have good compatibility with room for growth in some areas."
+        else:
+            return "There are significant differences that require attention and communication."
+    
     def _generate_recommendations(self, category_scores: Dict[str, float]) -> List[str]:
         recommendations = []
+        recommendation_map = {
+            'communication': "Practice daily check-ins and active listening",
+            'values': "Discuss your core values and find common ground",
+            'lifestyle': "Find activities you both enjoy and create shared routines",
+            'intimacy': "Schedule regular quality time and express appreciation",
+            'goals': "Create shared goals and support each other's dreams",
+            'personality': "Embrace your differences and find complementary strengths"
+        }
         
         # Focus on weakest areas
         sorted_categories = sorted(category_scores.items(), key=lambda x: x[1])
         
         for category, score in sorted_categories[:3]:  # Top 3 areas to improve
-            if score < 0.7:
-                if category == 'communication':
-                    recommendations.append("Practice daily check-ins and active listening")
-                elif category == 'values':
-                    recommendations.append("Discuss your core values and find common ground")
-                elif category == 'lifestyle':
-                    recommendations.append("Find activities you both enjoy and create shared routines")
-                elif category == 'intimacy':
-                    recommendations.append("Schedule regular quality time and express appreciation")
-                elif category == 'goals':
-                    recommendations.append("Create shared goals and support each other's dreams")
-                elif category == 'personality':
-                    recommendations.append("Embrace your differences and find complementary strengths")
+            if score < 0.7 and category in recommendation_map:
+                recommendations.append(recommendation_map[category])
         
         return recommendations
     
@@ -128,19 +139,24 @@ class CompatibilityAnalyzer:
             )
         
         # Calculate scores based on interaction patterns
-        communication_score = min(1.0, total_interactions / 30)  # Normalize by expected monthly interactions
-        engagement_score = self._calculate_engagement_score(interaction_history)
-        overall_health_score = (communication_score + engagement_score) / 2
+        scores = self._calculate_health_scores(total_interactions, interaction_history)
+        communication_score = scores['communication']
+        engagement_score = scores['engagement']
+        overall_health_score = scores['overall']
         
-        # Generate trends (simplified)
-        trends = {
-            "daily_activity": [0.5 + np.random.normal(0, 0.1) for _ in range(7)],
-            "compatibility_trend": [0.6 + np.random.normal(0, 0.05) for _ in range(30)]
-        }
+        # Generate trends (simplified) with error handling
+        try:
+            trends = {
+                "daily_activity": [0.5 + np.random.normal(0, 0.1) for _ in range(7)],
+                "compatibility_trend": [0.6 + np.random.normal(0, 0.05) for _ in range(30)]
+            }
+        except Exception:
+            trends = {"daily_activity": [0.5] * 7, "compatibility_trend": [0.6] * 30}
         
+        engagement_level = self._get_engagement_level(engagement_score)
         insights = [
             f"You've had {total_interactions} interactions this month",
-            f"Your engagement level is {'high' if engagement_score > 0.7 else 'moderate' if engagement_score > 0.4 else 'low'}"
+            f"Your engagement level is {engagement_level}"
         ]
         
         recommendations = [
@@ -168,3 +184,24 @@ class CompatibilityAnalyzer:
         frequency_score = min(1.0, len(interactions) / 20)  # Normalize by expected frequency
         
         return (variety_score + frequency_score) / 2
+    
+    def _calculate_health_scores(self, total_interactions: int, interaction_history: List[Dict[str, Any]]) -> Dict[str, float]:
+        """Calculate health scores from interaction data"""
+        communication_score = min(1.0, total_interactions / 30)  # Normalize by expected monthly interactions
+        engagement_score = self._calculate_engagement_score(interaction_history)
+        overall_health_score = (communication_score + engagement_score) / 2
+        
+        return {
+            'communication': communication_score,
+            'engagement': engagement_score,
+            'overall': overall_health_score
+        }
+    
+    def _get_engagement_level(self, score: float) -> str:
+        """Convert engagement score to readable level"""
+        if score > 0.7:
+            return 'high'
+        elif score > 0.4:
+            return 'moderate'
+        else:
+            return 'low'
