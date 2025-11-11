@@ -1,0 +1,9 @@
+# This file is for the root directory
+# Each service should be deployed separately with their own root directory
+
+[build]
+builder = "nixpacks"
+
+# This configuration requires setting Root Directory in Railway dashboard
+# Backend: set Root Directory to "new-backend"  
+# ML Service: set Root Directory to "ml-service"
