@@ -1,0 +1,17 @@
+# Commands to deploy ML service to Hugging Face
+
+# 1. Clone your HF Space
+git clone https://huggingface.co/spaces/YOUR_USERNAME/echo-ml-service
+cd echo-ml-service
+
+# 2. Copy ML service files
+cp ../echo_-_couples_connection_app/ml-service/README.md .
+cp ../echo_-_couples_connection_app/ml-service/Dockerfile .
+cp ../echo_-_couples_connection_app/ml-service/main.py .
+cp ../echo_-_couples_connection_app/ml-service/requirements.txt .
+cp -r ../echo_-_couples_connection_app/ml-service/app .
+
+# 3. Commit and push
+git add .
+git commit -m "Deploy Echo ML service"
+git push
