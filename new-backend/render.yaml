@@ -3,7 +3,8 @@ services:
     name: echo-backend
     env: node
     plan: free
-    buildCommand: npm install
+    rootDir: ./new-backend
+    buildCommand: npm ci
     startCommand: npm start
     envVars:
       - key: NODE_ENV
@@ -16,3 +17,5 @@ services:
         value: https://echoo-three.vercel.app
       - key: ML_SERVICE_URL
         value: https://your-hf-space.hf.space
+      - key: ALLOWED_ORIGINS
+        value: https://echoo-three.vercel.app

@@ -5,6 +5,7 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
+    "build": "npm install",
     "dev": "start /b node start-memcached.js && nodemon src/server.js",
     "seed": "node seed-questions.js",
     "test": "jest"

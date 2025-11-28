@@ -1,0 +1,6 @@
+NODE_ENV=production
+DATABASE_URL=postgresql://neondb_owner:npg_F4jiZJzy0dXL@ep-cool-leaf-a4dn80v0-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+JWT_SECRET=echo_couples_app_super_secure_jwt_secret_key_2024_production_ready
+FRONTEND_URL=https://echoo-three.vercel.app
+ML_SERVICE_URL=https://your-hf-space.hf.space
+ALLOWED_ORIGINS=https://echoo-three.vercel.app
