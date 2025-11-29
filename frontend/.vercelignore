@@ -1,0 +1,4 @@
+# Force fresh build
+.vercel
+node_modules
+dist

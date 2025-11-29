@@ -1,5 +1,5 @@
-// Updated for production deployment
-const API_BASE_URL = `${import.meta.env.VITE_API_URL || 'https://echo-backend-pml9.onrender.com'}/api`
+// Force production URL - no localhost fallback
+const API_BASE_URL = 'https://echo-backend-pml9.onrender.com/api'
 
 class ApiClient {
   private token: string | null = null
