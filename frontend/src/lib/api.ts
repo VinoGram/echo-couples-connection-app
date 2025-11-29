@@ -26,15 +26,26 @@ class ApiClient {
       ...options.headers,
     }
 
+    console.log(`Making request to: ${url}`, { method: options.method || 'GET', body: options.body })
+
     const response = await fetch(url, {
       ...options,
       headers,
     })
 
+    console.log(`Response status: ${response.status}`, response.statusText)
+
     if (!response.ok) {
       const errorText = await response.text()
       console.error(`API Error ${response.status}:`, errorText)
-      throw new Error(`API Error: ${response.statusText} - ${errorText}`)
+      
+      // Try to parse error as JSON for better error messages
+      try {
+        const errorJson = JSON.parse(errorText)
+        throw new Error(errorJson.error || errorText)
+      } catch {
+        throw new Error(errorText || `${response.status} ${response.statusText}`)
+      }
     }
 
     return response.json()

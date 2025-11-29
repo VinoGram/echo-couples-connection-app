@@ -36,11 +36,22 @@ export function SignInForm({ onLogin }: SignInFormProps) {
       toast.success(flow === "signIn" ? "Signed in successfully!" : "Account created successfully!");
       onLogin();
     } catch (error) {
-      toast.error(
-        flow === "signIn"
-          ? "Could not sign in, did you mean to sign up?"
-          : "Could not sign up, did you mean to sign in?"
-      );
+      console.error('Auth error:', error);
+      const errorMessage = error.message || error.toString();
+      
+      if (flow === "signIn") {
+        if (errorMessage.includes('Invalid credentials') || errorMessage.includes('401')) {
+          toast.error("Invalid email or password. Did you mean to sign up?");
+        } else {
+          toast.error(`Sign in failed: ${errorMessage}`);
+        }
+      } else {
+        if (errorMessage.includes('User already exists') || errorMessage.includes('400')) {
+          toast.error("Email already registered. Did you mean to sign in?");
+        } else {
+          toast.error(`Sign up failed: ${errorMessage}`);
+        }
+      }
     } finally {
       setSubmitting(false);
     }

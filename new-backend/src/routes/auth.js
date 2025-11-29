@@ -22,8 +22,13 @@ const loginSchema = Joi.object({
 // Register
 router.post('/register', async (req, res) => {
   try {
+    console.log('Register request received:', { email: req.body.email, username: req.body.username });
+    
     const { error } = registerSchema.validate(req.body);
-    if (error) return res.status(400).json({ error: error.details[0].message });
+    if (error) {
+      console.log('Validation error:', error.details[0].message);
+      return res.status(400).json({ error: error.details[0].message });
+    }
 
     const { email, username, password } = req.body;
     
@@ -33,9 +38,11 @@ router.post('/register', async (req, res) => {
       }
     });
     if (existingUser) {
+      console.log('User already exists:', existingUser.email);
       return res.status(400).json({ error: 'User already exists' });
     }
 
+    console.log('Creating new user...');
     const user = await User.create({ 
       email, 
       username, 
@@ -51,16 +58,19 @@ router.post('/register', async (req, res) => {
         lastActivityDate: new Date().toDateString()
       }
     });
+    console.log('User created successfully:', user.id);
 
     // Send welcome email
     try {
       const emailService = require('../services/emailService');
       await emailService.sendWelcomeEmail(email, username);
+      console.log('Welcome email sent successfully');
     } catch (emailError) {
       console.error('Failed to send welcome email:', emailError);
     }
 
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    console.log('Registration successful for:', email);
     
     res.status(201).json({
       token,
@@ -72,6 +82,7 @@ router.post('/register', async (req, res) => {
       }
     });
   } catch (error) {
+    console.error('Registration error:', error);
     res.status(500).json({ error: error.message });
   }
 });
