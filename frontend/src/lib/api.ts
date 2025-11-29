@@ -28,7 +28,7 @@ class ApiClient {
 
     // Manual timeout implementation
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 120000) // 2 minutes
+    const timeoutId = setTimeout(() => controller.abort(), 300000) // 5 minutes
 
     try {
       const response = await fetch(url, {
@@ -63,21 +63,49 @@ class ApiClient {
 
   // Auth
   async login(email: string, password: string) {
-    const result = await this.request('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    })
-    this.setToken(result.token)
-    return result
+    let lastError;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const result = await this.request('/auth/login', {
+          method: 'POST',
+          body: JSON.stringify({ email, password }),
+        })
+        this.setToken(result.token)
+        return result
+      } catch (error: any) {
+        lastError = error;
+        if (attempt === 1 && error.message.includes('timed out')) {
+          console.log('Login timed out, retrying...');
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        } else {
+          throw error;
+        }
+      }
+    }
+    throw lastError;
   }
 
   async register(email: string, password: string, username: string) {
-    const result = await this.request('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify({ email, password, username }),
-    })
-    this.setToken(result.token)
-    return result
+    let lastError;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const result = await this.request('/auth/register', {
+          method: 'POST',
+          body: JSON.stringify({ email, password, username }),
+        })
+        this.setToken(result.token)
+        return result
+      } catch (error: any) {
+        lastError = error;
+        if (attempt === 1 && error.message.includes('timed out')) {
+          console.log('Register timed out, retrying...');
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        } else {
+          throw error;
+        }
+      }
+    }
+    throw lastError;
   }
 
   async forgotPassword(email: string) {
