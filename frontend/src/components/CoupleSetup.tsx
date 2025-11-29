@@ -15,7 +15,6 @@ export function CoupleSetup({ couple, onCoupleUpdate }: CoupleSetupProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
-  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
 
   const generateUniqueCode = () => {
     const timestamp = Date.now().toString().slice(-6);
@@ -93,22 +92,26 @@ export function CoupleSetup({ couple, onCoupleUpdate }: CoupleSetupProps) {
     }
   };
 
-  const handleSendWhatsApp = async () => {
+
+
+  const handleSendWhatsApp = () => {
     if (!partnerWhatsApp.trim()) {
       toast.error("Please enter WhatsApp number");
       return;
     }
 
-    setIsSendingWhatsApp(true);
-    try {
-      await api.sendWhatsAppInvite(partnerWhatsApp);
-      toast.success(`WhatsApp invitation sent to ${partnerWhatsApp}`);
-      setPartnerWhatsApp("");
-    } catch (error) {
-      toast.error("Failed to send WhatsApp invitation");
-    } finally {
-      setIsSendingWhatsApp(false);
+    if (!couple?.connectionCode) {
+      toast.error("No connection code available");
+      return;
     }
+
+    const message = `💕 Join me on Echo - Couples Connection App!\n\nI've created a private room for us to strengthen our relationship through fun games and meaningful conversations.\n\n🔑 Connection Code: ${couple.connectionCode}\n\n👉 Join here: ${window.location.origin}?join=${couple.connectionCode}\n\nLet's start our journey together! 🎉`;
+    
+    const whatsappUrl = `https://wa.me/${partnerWhatsApp.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(message)}`;
+    
+    window.open(whatsappUrl, '_blank');
+    toast.success('Opening WhatsApp...');
+    setPartnerWhatsApp("");
   };
 
   const handleJoinCouple = async () => {
@@ -214,6 +217,8 @@ export function CoupleSetup({ couple, onCoupleUpdate }: CoupleSetupProps) {
                 </div>
               </div>
               
+
+              
               <div>
                 <h3 className="text-lg font-semibold text-gray-800 mb-3">
                   Send via WhatsApp
@@ -228,10 +233,10 @@ export function CoupleSetup({ couple, onCoupleUpdate }: CoupleSetupProps) {
                   />
                   <button
                     onClick={handleSendWhatsApp}
-                    disabled={isSendingWhatsApp || !partnerWhatsApp.trim()}
+                    disabled={!partnerWhatsApp.trim()}
                     className="bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold py-3 px-6 rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl whitespace-nowrap"
                   >
-                    {isSendingWhatsApp ? "Sending..." : "Send via WhatsApp"}
+                    Send via WhatsApp
                   </button>
                 </div>
               </div>
