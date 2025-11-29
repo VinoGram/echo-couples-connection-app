@@ -1,3 +1,4 @@
+// Updated for production deployment
 const API_BASE_URL = `${import.meta.env.VITE_API_URL || 'https://echo-backend-pml9.onrender.com'}/api`
 
 class ApiClient {
