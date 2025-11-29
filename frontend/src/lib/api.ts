@@ -26,20 +26,16 @@ class ApiClient {
       ...options.headers,
     }
 
-    console.log(`Making request to: ${url}`, { method: options.method || 'GET', body: options.body })
-
     const response = await fetch(url, {
       ...options,
       headers,
+      signal: AbortSignal.timeout(60000), // 60 second timeout
     })
-
-    console.log(`Response status: ${response.status}`, response.statusText)
 
     if (!response.ok) {
       const errorText = await response.text()
       console.error(`API Error ${response.status}:`, errorText)
       
-      // Try to parse error as JSON for better error messages
       try {
         const errorJson = JSON.parse(errorText)
         throw new Error(errorJson.error || errorText)

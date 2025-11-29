@@ -120,8 +120,13 @@ export function SignInForm({ onLogin }: SignInFormProps) {
           </div>
         )}
         <button className="auth-button" type="submit" disabled={submitting}>
-          {flow === "signIn" ? "Sign in" : "Sign up"}
+          {submitting ? (flow === "signIn" ? "Signing in..." : "Creating account...") : (flow === "signIn" ? "Sign in" : "Sign up")}
         </button>
+        {submitting && (
+          <div className="text-center text-sm text-gray-600">
+            Please wait, this may take up to 30 seconds...
+          </div>
+        )}
         
         {flow === "signIn" && (
           <div className="text-center">
