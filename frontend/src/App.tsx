@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import { Dashboard } from "./components/Dashboard";
 import { CoupleSetup } from "./components/CoupleSetup";
 import { api } from "./lib/api";
+import { startKeepAlive } from "./lib/keepAlive";
 import { Heart, MessageCircle, Gamepad2, TrendingUp } from "lucide-react";
 
 export default function App() {
@@ -16,6 +17,9 @@ export default function App() {
   const [showCoupleSetup, setShowCoupleSetup] = useState(false)
 
   useEffect(() => {
+    // Start keep-alive system
+    startKeepAlive();
+    
     const token = sessionStorage.getItem('auth_token')
     const urlParams = new URLSearchParams(window.location.search)
     const joinCode = urlParams.get('join')

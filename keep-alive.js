@@ -1,4 +1,4 @@
-// Keep backend alive by pinging it every 14 minutes
+// Keep backend alive by pinging it every 3 minutes
 const BACKEND_URL = 'https://echo-backend-pml9.onrender.com';
 
 async function pingBackend() {
@@ -10,8 +10,8 @@ async function pingBackend() {
   }
 }
 
-// Ping every 14 minutes (Render sleeps after 15 minutes of inactivity)
-setInterval(pingBackend, 14 * 60 * 1000);
+// Ping every 3 minutes to keep it very active
+setInterval(pingBackend, 3 * 60 * 1000);
 
 // Initial ping
 pingBackend();
