@@ -5,7 +5,7 @@ export async function wakeUpBackend(): Promise<boolean> {
     console.log('Waking up backend...');
     const response = await fetch(`${BACKEND_URL}/health`, {
       method: 'GET',
-      signal: AbortSignal.timeout(60000)
+      signal: AbortSignal.timeout(120000) // 2 minutes
     });
     return response.ok;
   } catch (error) {
@@ -15,7 +15,7 @@ export async function wakeUpBackend(): Promise<boolean> {
 }
 
 export async function ensureBackendReady(): Promise<void> {
-  const maxRetries = 3;
+  const maxRetries = 2;
   let retries = 0;
   
   while (retries < maxRetries) {
@@ -29,9 +29,9 @@ export async function ensureBackendReady(): Promise<void> {
     console.log(`Backend not ready, retry ${retries}/${maxRetries}`);
     
     if (retries < maxRetries) {
-      await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
+      await new Promise(resolve => setTimeout(resolve, 10000)); // Wait 10 seconds
     }
   }
   
-  throw new Error('Backend failed to wake up after multiple attempts');
+  throw new Error('Server is taking longer than usual to start. Please try again in a moment.');
 }

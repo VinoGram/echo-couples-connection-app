@@ -29,7 +29,7 @@ class ApiClient {
     const response = await fetch(url, {
       ...options,
       headers,
-      signal: AbortSignal.timeout(60000), // 60 second timeout
+      signal: AbortSignal.timeout(120000), // 2 minute timeout
     })
 
     if (!response.ok) {

@@ -135,7 +135,7 @@ export function SignInForm({ onLogin }: SignInFormProps) {
         {submitting && (
           <div className="text-center text-sm text-gray-600">
             {flow === "signIn" ? "Waking up server and signing in..." : "Waking up server and creating account..."}<br/>
-            This may take up to 30 seconds on first use.
+            This may take up to 2 minutes on first use. Please be patient.
           </div>
         )}
         
