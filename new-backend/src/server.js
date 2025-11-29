@@ -21,6 +21,7 @@ const chatRoutes = require('./routes/chat');
 const awardsRoutes = require('./routes/awards');
 const quizzesRoutes = require('./routes/quizzes');
 const coupleActivitiesRoutes = require('./routes/coupleActivities');
+const invitationRoutes = require('./routes/invitations');
 const socketHandler = require('./services/socketHandler');
 
 const app = express();
@@ -71,6 +72,7 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/awards', awardsRoutes);
 app.use('/api/quizzes', quizzesRoutes);
 app.use('/api/activities', coupleActivitiesRoutes);
+app.use('/api/invitations', invitationRoutes);
 
 // Socket.io
 socketHandler(io);
