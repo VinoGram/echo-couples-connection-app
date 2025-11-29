@@ -20,6 +20,19 @@ export function SignInForm({ onLogin }: SignInFormProps) {
     const password = formData.get("password") as string;
 
     try {
+      // Frontend validation
+      if (!email || !password) {
+        toast.error("Please fill in all fields");
+        setSubmitting(false);
+        return;
+      }
+      
+      if (password.length < 6) {
+        toast.error("Password must be at least 6 characters");
+        setSubmitting(false);
+        return;
+      }
+      
       let result;
       if (flow === "signIn") {
         result = await api.login(email, password);
@@ -29,7 +42,7 @@ export function SignInForm({ onLogin }: SignInFormProps) {
           setSubmitting(false);
           return;
         }
-        const username = `${selectedGender}_${Date.now()}`; // Generate unique username
+        const username = `${selectedGender}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`; // Generate unique username
         result = await api.register(email, password, username);
       }
       sessionStorage.setItem('userId', result.user.id);
@@ -71,7 +84,8 @@ export function SignInForm({ onLogin }: SignInFormProps) {
           className="auth-input-field"
           type="password"
           name="password"
-          placeholder="Password"
+          placeholder="Password (min 6 characters)"
+          minLength={6}
           required
         />
         {flow === "signUp" && (
