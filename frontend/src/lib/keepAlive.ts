@@ -5,10 +5,15 @@ let pingInterval: NodeJS.Timeout | null = null;
 
 async function pingBackend() {
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    
     await fetch(`${BACKEND_URL}/health`, { 
       method: 'GET',
-      signal: AbortSignal.timeout(10000)
+      signal: controller.signal
     });
+    
+    clearTimeout(timeoutId);
   } catch (error) {
     // Silent fail - don't spam console
   }

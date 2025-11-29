@@ -26,25 +26,39 @@ class ApiClient {
       ...options.headers,
     }
 
-    const response = await fetch(url, {
-      ...options,
-      headers,
-      signal: AbortSignal.timeout(120000), // 2 minute timeout
-    })
+    // Manual timeout implementation
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 120000) // 2 minutes
 
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error(`API Error ${response.status}:`, errorText)
-      
-      try {
-        const errorJson = JSON.parse(errorText)
-        throw new Error(errorJson.error || errorText)
-      } catch {
-        throw new Error(errorText || `${response.status} ${response.statusText}`)
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers,
+        signal: controller.signal,
+      })
+
+      clearTimeout(timeoutId)
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error(`API Error ${response.status}:`, errorText)
+        
+        try {
+          const errorJson = JSON.parse(errorText)
+          throw new Error(errorJson.error || errorText)
+        } catch {
+          throw new Error(errorText || `${response.status} ${response.statusText}`)
+        }
       }
-    }
 
-    return response.json()
+      return response.json()
+    } catch (error: any) {
+      clearTimeout(timeoutId)
+      if (error.name === 'AbortError') {
+        throw new Error('Request timed out. Server may be starting up, please try again.')
+      }
+      throw error
+    }
   }
 
   // Auth

@@ -3,10 +3,15 @@ const BACKEND_URL = 'https://echo-backend-pml9.onrender.com';
 export async function wakeUpBackend(): Promise<boolean> {
   try {
     console.log('Waking up backend...');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minutes
+    
     const response = await fetch(`${BACKEND_URL}/health`, {
       method: 'GET',
-      signal: AbortSignal.timeout(120000) // 2 minutes
+      signal: controller.signal
     });
+    
+    clearTimeout(timeoutId);
     return response.ok;
   } catch (error) {
     console.error('Failed to wake up backend:', error);
