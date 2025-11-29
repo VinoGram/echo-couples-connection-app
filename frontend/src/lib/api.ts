@@ -142,10 +142,17 @@ class ApiClient {
   }
 
   async sendWhatsAppInvite(partnerPhone: string) {
-    return this.request('/users/invite-partner', {
-      method: 'POST',
-      body: JSON.stringify({ partnerPhone }),
-    })
+    try {
+      return await this.request('/users/invite-partner', {
+        method: 'POST',
+        body: JSON.stringify({ partnerPhone }),
+      })
+    } catch (error: any) {
+      if (error.message.includes('WhatsApp service not configured')) {
+        throw new Error('WhatsApp invites are not available. Please use email invitations instead.')
+      }
+      throw error
+    }
   }
 
   async getCurrentCouple() {

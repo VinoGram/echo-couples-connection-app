@@ -58,7 +58,7 @@ export function SignInForm({ onLogin }: SignInFormProps) {
       sessionStorage.setItem('userId', result.user.id);
       toast.success(flow === "signIn" ? "Signed in successfully!" : "Account created successfully!");
       onLogin();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Auth error:', error);
       const errorMessage = error.message || error.toString();
       
