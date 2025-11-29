@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { api } from "./lib/api";
+import { ensureBackendReady } from "./lib/healthCheck";
 
 interface SignInFormProps {
   onLogin: () => void;
@@ -14,6 +15,15 @@ export function SignInForm({ onLogin }: SignInFormProps) {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSubmitting(true);
+    
+    // Wake up backend first
+    try {
+      await ensureBackendReady();
+    } catch (error) {
+      toast.error('Server is starting up, please try again in a moment');
+      setSubmitting(false);
+      return;
+    }
     
     const formData = new FormData(e.target as HTMLFormElement);
     const email = formData.get("email") as string;
@@ -124,7 +134,8 @@ export function SignInForm({ onLogin }: SignInFormProps) {
         </button>
         {submitting && (
           <div className="text-center text-sm text-gray-600">
-            Please wait, this may take up to 30 seconds...
+            {flow === "signIn" ? "Waking up server and signing in..." : "Waking up server and creating account..."}<br/>
+            This may take up to 30 seconds on first use.
           </div>
         )}
         
