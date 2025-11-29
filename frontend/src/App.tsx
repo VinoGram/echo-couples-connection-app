@@ -5,6 +5,7 @@ import { Toaster } from "sonner";
 import { useState, useEffect } from "react";
 import { Dashboard } from "./components/Dashboard";
 import { CoupleSetup } from "./components/CoupleSetup";
+import { SignupDiagnostic } from "./components/SignupDiagnostic";
 import { api } from "./lib/api";
 import { Heart, MessageCircle, Gamepad2, TrendingUp } from "lucide-react";
 
@@ -235,6 +236,9 @@ function Content({ isAuthenticated, couple, loading, handleLogin, setCouple, sho
             <div className="max-w-md mx-auto px-4">
               <div className="bg-white/80 backdrop-blur-sm rounded-2xl sm:rounded-3xl p-6 sm:p-8 shadow-2xl border border-white/20">
                 <SignInForm onLogin={handleLogin} />
+              </div>
+              <div className="mt-4">
+                <SignupDiagnostic />
               </div>
             </div>
           </div>
