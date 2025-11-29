@@ -13,6 +13,11 @@ router.post('/invite-partner', auth, async (req, res) => {
     const { partnerPhone } = req.body;
     const user = await User.findByPk(req.user.id);
     
+    // Check if WhatsApp is configured
+    if (!process.env.WHATSAPP_ACCESS_TOKEN || !process.env.WHATSAPP_PHONE_NUMBER_ID) {
+      return res.status(400).json({ error: 'WhatsApp service not configured. Please use email invitation instead.' });
+    }
+    
     // Generate unique token
     const token = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
