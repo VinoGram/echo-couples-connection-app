@@ -24,6 +24,21 @@ router.post('/create', auth, async (req, res) => {
   }
 });
 
+// Send connection code via email
+router.post('/send-code', auth, async (req, res) => {
+  try {
+    const { email, connectionCode } = req.body;
+    const user = await User.findByPk(req.user.id);
+    
+    const emailService = require('../services/emailService');
+    await emailService.sendPartnerInvitation(email, user.username, connectionCode);
+    
+    res.json({ message: 'Connection code sent successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Join couple using connection code
 router.post('/join', auth, async (req, res) => {
   try {
