@@ -28,12 +28,11 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: [
-      "https://echoo-three.vercel.app",
-      "http://localhost:5173",
-      "http://localhost:3000"
-    ],
-    methods: ["GET", "POST"]
+    origin: function (origin, callback) {
+      callback(null, true); // Allow all origins for socket.io
+    },
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 
@@ -85,14 +84,22 @@ app.use(helmet());
 app.use(compression());
 app.use(morgan('combined'));
 app.use(cors({
-  origin: [
-    "https://echoo-three.vercel.app",
-    "http://localhost:5173",
-    "http://localhost:3000"
-  ],
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      "https://echoo-three.vercel.app",
+      "http://localhost:5173",
+      "http://localhost:3000"
+    ];
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(null, true); // Allow all for now
+    }
+  },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  optionsSuccessStatus: 200
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
