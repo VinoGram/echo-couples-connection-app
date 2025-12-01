@@ -119,18 +119,34 @@ export function ActivityHistory() {
                           <span className="font-medium text-pink-800">{activity.user.name}</span>
                         </div>
                         <div className="text-gray-700">
-                          {typeof activity.user.response === 'object' ? (
+                          {activity.user.answers ? (
                             <div className="space-y-2">
-                              {Object.entries(activity.user.response).map(([key, value]) => (
-                                <div key={key} className="bg-white rounded-lg p-3">
-                                  <span className="font-medium text-pink-700 capitalize">{key}:</span>
-                                  <p className="mt-1">{String(value)}</p>
+                              {activity.user.answers.map((answer: any, index: number) => (
+                                <div key={index} className="bg-white rounded-lg p-3">
+                                  <span className="font-medium text-pink-700">Q{index + 1}:</span>
+                                  <p className="mt-1">{answer.question || 'Question'}</p>
+                                  <p className="text-pink-600 font-medium">Choice: {answer.choice || answer.answer || JSON.stringify(answer)}</p>
                                 </div>
                               ))}
                             </div>
+                          ) : activity.user.response ? (
+                            typeof activity.user.response === 'object' ? (
+                              <div className="space-y-2">
+                                {Object.entries(activity.user.response).map(([key, value]) => (
+                                  <div key={key} className="bg-white rounded-lg p-3">
+                                    <span className="font-medium text-pink-700 capitalize">{key}:</span>
+                                    <p className="mt-1">{String(value)}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="bg-white rounded-lg p-3">
+                                {activity.user.response}
+                              </div>
+                            )
                           ) : (
-                            <div className="bg-white rounded-lg p-3">
-                              {activity.user.response}
+                            <div className="bg-white rounded-lg p-3 text-gray-500">
+                              No response data
                             </div>
                           )}
                         </div>
@@ -142,18 +158,34 @@ export function ActivityHistory() {
                           <span className="font-medium text-purple-800">{activity.partner.name}</span>
                         </div>
                         <div className="text-gray-700">
-                          {typeof activity.partner.response === 'object' ? (
+                          {activity.partner.answers ? (
                             <div className="space-y-2">
-                              {Object.entries(activity.partner.response).map(([key, value]) => (
-                                <div key={key} className="bg-white rounded-lg p-3">
-                                  <span className="font-medium text-purple-700 capitalize">{key}:</span>
-                                  <p className="mt-1">{String(value)}</p>
+                              {activity.partner.answers.map((answer: any, index: number) => (
+                                <div key={index} className="bg-white rounded-lg p-3">
+                                  <span className="font-medium text-purple-700">Q{index + 1}:</span>
+                                  <p className="mt-1">{answer.question || 'Question'}</p>
+                                  <p className="text-purple-600 font-medium">Choice: {answer.choice || answer.answer || JSON.stringify(answer)}</p>
                                 </div>
                               ))}
                             </div>
+                          ) : activity.partner.response ? (
+                            typeof activity.partner.response === 'object' ? (
+                              <div className="space-y-2">
+                                {Object.entries(activity.partner.response).map(([key, value]) => (
+                                  <div key={key} className="bg-white rounded-lg p-3">
+                                    <span className="font-medium text-purple-700 capitalize">{key}:</span>
+                                    <p className="mt-1">{String(value)}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="bg-white rounded-lg p-3">
+                                {activity.partner.response}
+                              </div>
+                            )
                           ) : (
-                            <div className="bg-white rounded-lg p-3">
-                              {activity.partner.response}
+                            <div className="bg-white rounded-lg p-3 text-gray-500">
+                              No response data
                             </div>
                           )}
                         </div>
