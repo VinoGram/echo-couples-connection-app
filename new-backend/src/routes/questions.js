@@ -47,6 +47,48 @@ router.get('/adaptive', auth, async (req, res) => {
   }
 });
 
+// This or That game questions
+router.get('/this-or-that', auth, async (req, res) => {
+  try {
+    const thisOrThatQuestions = [
+      {
+        id: 1,
+        question: "For a perfect evening together",
+        option1: "Cozy movie night at home",
+        option2: "Romantic dinner out"
+      },
+      {
+        id: 2,
+        question: "For our next vacation",
+        option1: "Beach resort",
+        option2: "Mountain cabin"
+      },
+      {
+        id: 3,
+        question: "For showing love",
+        option1: "Physical touch",
+        option2: "Words of affirmation"
+      },
+      {
+        id: 4,
+        question: "For weekend mornings",
+        option1: "Sleep in together",
+        option2: "Early morning adventure"
+      },
+      {
+        id: 5,
+        question: "For date nights",
+        option1: "Try new experiences",
+        option2: "Stick to favorites"
+      }
+    ];
+    
+    res.json({ questions: thisOrThatQuestions });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get daily question
 router.get('/daily', auth, async (req, res) => {
   try {
