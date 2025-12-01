@@ -267,6 +267,16 @@ router.get('/history', auth, async (req, res) => {
       const userResponse = activity.user1Id === userId ? activity.user1Response : activity.user2Response;
       const partnerResponse = activity.user1Id === userId ? activity.user2Response : activity.user1Response;
       
+      // Format responses to extract answers array if it exists
+      const formatResponse = (response) => {
+        if (!response) return null;
+        if (typeof response === 'string') return response;
+        if (response.answers && Array.isArray(response.answers)) {
+          return response.answers;
+        }
+        return response;
+      };
+      
       return {
         id: activity.id,
         type: activity.activityType,
@@ -274,10 +284,12 @@ router.get('/history', auth, async (req, res) => {
         completedAt: activity.completedAt,
         user: {
           name: user.username,
+          answers: formatResponse(userResponse),
           response: userResponse || {}
         },
         partner: {
           name: partner?.username || 'Partner',
+          answers: formatResponse(partnerResponse),
           response: partnerResponse || {}
         }
       };

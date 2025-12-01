@@ -119,29 +119,31 @@ export function ActivityHistory() {
                           <span className="font-medium text-pink-800">{activity.user.name}</span>
                         </div>
                         <div className="text-gray-700">
-                          {activity.user.answers ? (
+                          {activity.user.answers && Array.isArray(activity.user.answers) ? (
                             <div className="space-y-2">
                               {activity.user.answers.map((answer: any, index: number) => (
                                 <div key={index} className="bg-white rounded-lg p-3">
                                   <span className="font-medium text-pink-700">Q{index + 1}:</span>
                                   <p className="mt-1">{answer.question || 'Question'}</p>
-                                  <p className="text-pink-600 font-medium">Choice: {answer.choice || answer.answer || JSON.stringify(answer)}</p>
+                                  <p className="text-pink-600 font-medium">
+                                    Answer: {answer.choice || answer.answer || (typeof answer === 'string' ? answer : JSON.stringify(answer))}
+                                  </p>
                                 </div>
                               ))}
                             </div>
                           ) : activity.user.response ? (
-                            typeof activity.user.response === 'object' ? (
+                            typeof activity.user.response === 'object' && !Array.isArray(activity.user.response) ? (
                               <div className="space-y-2">
                                 {Object.entries(activity.user.response).map(([key, value]) => (
                                   <div key={key} className="bg-white rounded-lg p-3">
-                                    <span className="font-medium text-pink-700 capitalize">{key}:</span>
-                                    <p className="mt-1">{String(value)}</p>
+                                    <span className="font-medium text-pink-700 capitalize">{key.replace('_', ' ')}:</span>
+                                    <p className="mt-1">{typeof value === 'object' ? JSON.stringify(value) : String(value)}</p>
                                   </div>
                                 ))}
                               </div>
                             ) : (
                               <div className="bg-white rounded-lg p-3">
-                                {activity.user.response}
+                                {String(activity.user.response)}
                               </div>
                             )
                           ) : (
@@ -158,29 +160,31 @@ export function ActivityHistory() {
                           <span className="font-medium text-purple-800">{activity.partner.name}</span>
                         </div>
                         <div className="text-gray-700">
-                          {activity.partner.answers ? (
+                          {activity.partner.answers && Array.isArray(activity.partner.answers) ? (
                             <div className="space-y-2">
                               {activity.partner.answers.map((answer: any, index: number) => (
                                 <div key={index} className="bg-white rounded-lg p-3">
                                   <span className="font-medium text-purple-700">Q{index + 1}:</span>
                                   <p className="mt-1">{answer.question || 'Question'}</p>
-                                  <p className="text-purple-600 font-medium">Choice: {answer.choice || answer.answer || JSON.stringify(answer)}</p>
+                                  <p className="text-purple-600 font-medium">
+                                    Answer: {answer.choice || answer.answer || (typeof answer === 'string' ? answer : JSON.stringify(answer))}
+                                  </p>
                                 </div>
                               ))}
                             </div>
                           ) : activity.partner.response ? (
-                            typeof activity.partner.response === 'object' ? (
+                            typeof activity.partner.response === 'object' && !Array.isArray(activity.partner.response) ? (
                               <div className="space-y-2">
                                 {Object.entries(activity.partner.response).map(([key, value]) => (
                                   <div key={key} className="bg-white rounded-lg p-3">
-                                    <span className="font-medium text-purple-700 capitalize">{key}:</span>
-                                    <p className="mt-1">{String(value)}</p>
+                                    <span className="font-medium text-purple-700 capitalize">{key.replace('_', ' ')}:</span>
+                                    <p className="mt-1">{typeof value === 'object' ? JSON.stringify(value) : String(value)}</p>
                                   </div>
                                 ))}
                               </div>
                             ) : (
                               <div className="bg-white rounded-lg p-3">
-                                {activity.partner.response}
+                                {String(activity.partner.response)}
                               </div>
                             )
                           ) : (
