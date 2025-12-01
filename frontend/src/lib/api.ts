@@ -115,6 +115,13 @@ class ApiClient {
     })
   }
 
+  async verifyOTP(email: string, otp: string, newPassword: string) {
+    return this.request('/auth/verify-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email, otp, newPassword }),
+    })
+  }
+
   async changePassword(currentPassword: string, newPassword: string) {
     return this.request('/auth/change-password', {
       method: 'PUT',

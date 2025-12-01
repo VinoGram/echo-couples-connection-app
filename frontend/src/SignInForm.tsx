@@ -8,9 +8,12 @@ interface SignInFormProps {
 }
 
 export function SignInForm({ onLogin }: SignInFormProps) {
-  const [flow, setFlow] = useState<"signIn" | "signUp" | "forgotPassword">("signIn");
+  const [flow, setFlow] = useState<"signIn" | "signUp" | "forgotPassword" | "verifyOTP">("signIn");
   const [submitting, setSubmitting] = useState(false);
   const [selectedGender, setSelectedGender] = useState<string>("");
+  const [resetEmail, setResetEmail] = useState<string>("");
+  const [otp, setOtp] = useState<string>("");
+  const [displayOTP, setDisplayOTP] = useState<string>("");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -153,7 +156,7 @@ export function SignInForm({ onLogin }: SignInFormProps) {
         
         {flow === "forgotPassword" && (
           <div className="text-center space-y-3">
-            <p className="text-sm text-gray-600">We'll send a temporary password to your email</p>
+            <p className="text-sm text-gray-600">We'll generate an OTP for password reset</p>
             <button
               type="button"
               className="text-sm text-pink-600 hover:text-pink-700 hover:underline cursor-pointer bg-transparent border-none p-0"
@@ -167,33 +170,19 @@ export function SignInForm({ onLogin }: SignInFormProps) {
                 }
                 setSubmitting(true);
                 try {
-                  await api.forgotPassword(email);
-                  toast.success("Temporary password sent to your email!");
-                  setFlow("signIn");
+                  const result = await api.forgotPassword(email);
+                  setResetEmail(email);
+                  setDisplayOTP(result.otp);
+                  setFlow("verifyOTP");
+                  toast.success("OTP generated! Enter the code below.");
                 } catch (error: any) {
-                  const errorData = error.message;
-                  if (errorData.includes('tempPassword')) {
-                    // Extract temp password from error message
-                    try {
-                      const response = JSON.parse(errorData.split('API Error: ')[1]);
-                      if (response.tempPassword) {
-                        toast.success(`Your temporary password: ${response.tempPassword}`);
-                        toast.info('Please save this password and change it after logging in.');
-                      } else {
-                        toast.error("Email not found. Please check your email address.");
-                      }
-                    } catch {
-                      toast.error("Email not found. Please check your email address.");
-                    }
-                  } else {
-                    toast.error("Email not found. Please check your email address.");
-                  }
+                  toast.error("Email not found. Please check your email address.");
                 } finally {
                   setSubmitting(false);
                 }
               }}
             >
-              {submitting ? "Sending..." : "Send Temporary Password"}
+              {submitting ? "Generating..." : "Generate OTP"}
             </button>
             <div>
               <button
@@ -204,6 +193,68 @@ export function SignInForm({ onLogin }: SignInFormProps) {
                 Back to Sign In
               </button>
             </div>
+          </div>
+        )}
+        
+        {flow === "verifyOTP" && (
+          <div className="text-center space-y-4">
+            <div className="bg-green-50 p-4 rounded-xl border border-green-200">
+              <p className="text-sm text-gray-600 mb-2">Your OTP Code:</p>
+              <div className="text-2xl font-mono font-bold text-green-600 mb-2">{displayOTP}</div>
+              <p className="text-xs text-gray-500">Valid for 10 minutes</p>
+            </div>
+            <input
+              type="text"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value)}
+              placeholder="Enter OTP"
+              className="auth-input-field text-center font-mono"
+              maxLength={6}
+            />
+            <input
+              type="password"
+              placeholder="New Password (min 6 characters)"
+              className="auth-input-field"
+              id="newPassword"
+              minLength={6}
+            />
+            <button
+              type="button"
+              className="w-full bg-green-500 text-white py-3 px-4 rounded-xl font-semibold hover:bg-green-600 transition-colors disabled:opacity-50"
+              disabled={submitting || !otp || otp.length !== 6}
+              onClick={async () => {
+                const newPassword = (document.getElementById('newPassword') as HTMLInputElement).value;
+                if (!newPassword || newPassword.length < 6) {
+                  toast.error("Password must be at least 6 characters");
+                  return;
+                }
+                setSubmitting(true);
+                try {
+                  await api.verifyOTP(resetEmail, otp, newPassword);
+                  toast.success("Password reset successfully!");
+                  setFlow("signIn");
+                  setOtp("");
+                  setDisplayOTP("");
+                } catch (error: any) {
+                  toast.error(error.message || "Invalid OTP or expired");
+                } finally {
+                  setSubmitting(false);
+                }
+              }}
+            >
+              {submitting ? "Resetting..." : "Reset Password"}
+            </button>
+            <button
+              type="button"
+              className="text-sm text-gray-500 hover:text-gray-700 hover:underline cursor-pointer bg-transparent border-none p-0"
+              onClick={() => {
+                setFlow("signIn");
+                setOtp("");
+                setDisplayOTP("");
+              }}
+            >
+              Back to Sign In
+            </button>
           </div>
         )}
         

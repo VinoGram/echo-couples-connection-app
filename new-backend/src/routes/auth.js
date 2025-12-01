@@ -131,7 +131,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Forgot password
+// Generate OTP for password reset
 router.post('/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
@@ -143,32 +143,65 @@ router.post('/forgot-password', async (req, res) => {
       return res.status(404).json({ error: 'Email not found' });
     }
 
-    // Generate temporary password
-    const tempPassword = Math.random().toString(36).slice(-8);
-    console.log('Generated temp password for:', email);
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
     
-    // Update user with temporary password
-    await user.update({ password: tempPassword });
-    console.log('Updated user password in database');
+    // Store OTP in user preferences
+    const preferences = user.preferences || {};
+    preferences.resetOTP = otp;
+    preferences.resetOTPExpiry = otpExpiry;
+    await user.update({ preferences });
     
-    // Send email with temporary password
-    try {
-      const emailService = require('../services/emailService');
-      console.log('Attempting to send email to:', email);
-      await emailService.sendTempPassword(email, user.username, tempPassword);
-      console.log('Email sent successfully to:', email);
-      res.json({ message: 'Temporary password sent to your email' });
-    } catch (emailError) {
-      console.error('Failed to send temp password email:', emailError);
-      // Fallback: Show temp password in response if email fails
-      res.json({ 
-        message: 'Email service unavailable. Your temporary password is:', 
-        tempPassword: tempPassword,
-        note: 'Please save this password and change it after logging in.' 
-      });
-    }
+    console.log('Generated OTP for:', email);
+    
+    res.json({ 
+      message: 'OTP generated successfully',
+      otp: otp,
+      expiresIn: '10 minutes'
+    });
   } catch (error) {
     console.error('Forgot password error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Verify OTP and reset password
+router.post('/verify-otp', async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+    
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    }
+    
+    const user = await User.findOne({ where: { email } });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const preferences = user.preferences || {};
+    const storedOTP = preferences.resetOTP;
+    const otpExpiry = new Date(preferences.resetOTPExpiry);
+    
+    if (!storedOTP || storedOTP !== otp) {
+      return res.status(400).json({ error: 'Invalid OTP' });
+    }
+    
+    if (new Date() > otpExpiry) {
+      return res.status(400).json({ error: 'OTP has expired' });
+    }
+    
+    // Update password and clear OTP
+    preferences.resetOTP = null;
+    preferences.resetOTPExpiry = null;
+    await user.update({ 
+      password: newPassword,
+      preferences 
+    });
+    
+    res.json({ message: 'Password reset successfully' });
+  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
