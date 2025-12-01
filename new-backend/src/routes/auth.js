@@ -135,28 +135,35 @@ router.post('/login', async (req, res) => {
 router.post('/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
+    console.log('Forgot password request for:', email);
     
     const user = await User.findOne({ where: { email } });
     if (!user) {
+      console.log('User not found for email:', email);
       return res.status(404).json({ error: 'Email not found' });
     }
 
     // Generate temporary password
     const tempPassword = Math.random().toString(36).slice(-8);
+    console.log('Generated temp password for:', email);
     
     // Update user with temporary password
     await user.update({ password: tempPassword });
+    console.log('Updated user password in database');
     
     // Send email with temporary password
     try {
       const emailService = require('../services/emailService');
+      console.log('Attempting to send email to:', email);
       await emailService.sendTempPassword(email, user.username, tempPassword);
+      console.log('Email sent successfully to:', email);
+      res.json({ message: 'Temporary password sent to your email' });
     } catch (emailError) {
       console.error('Failed to send temp password email:', emailError);
+      res.status(500).json({ error: 'Failed to send email. Please try again or contact support.' });
     }
-    
-    res.json({ message: 'Temporary password sent to your email' });
   } catch (error) {
+    console.error('Forgot password error:', error);
     res.status(500).json({ error: error.message });
   }
 });

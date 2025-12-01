@@ -202,6 +202,9 @@ class EmailService {
   }
 
   async sendTempPassword(email, username, tempPassword) {
+    console.log('Email service - sending temp password to:', email);
+    console.log('Email service - using EMAIL_USER:', process.env.EMAIL_USER);
+    
     const mailOptions = {
       from: `"Echo App" <${process.env.EMAIL_USER}>`,
       to: email,
@@ -230,7 +233,14 @@ class EmailService {
       `
     };
 
-    return this.transporter.sendMail(mailOptions);
+    try {
+      const result = await this.transporter.sendMail(mailOptions);
+      console.log('Email sent successfully:', result.messageId);
+      return result;
+    } catch (error) {
+      console.error('Email sending failed:', error);
+      throw error;
+    }
   }
 
   async sendActivityCompletionNotification(email, username, partnerName, activityType, activityName) {
