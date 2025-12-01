@@ -201,6 +201,38 @@ class EmailService {
     return this.transporter.sendMail(mailOptions);
   }
 
+  async sendTempPassword(email, username, tempPassword) {
+    const mailOptions = {
+      from: `"Echo App" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'Your Temporary Password - Echo App 🔑',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #f59e0b, #d97706); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="color: white; margin: 0; font-size: 28px;">Temporary Password 🔑</h1>
+          </div>
+          <div style="padding: 30px; background: #f9fafb; border-radius: 0 0 10px 10px;">
+            <h2 style="color: #374151; margin-top: 0;">Hi ${username}!</h2>
+            <p style="color: #6b7280; font-size: 16px; line-height: 1.6;">
+              Here's your temporary password to access your Echo account:
+            </p>
+            <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
+              <h3 style="color: #f59e0b; margin: 0; font-size: 24px; font-family: monospace;">${tempPassword}</h3>
+            </div>
+            <p style="color: #dc2626; font-size: 14px;">
+              ⚠️ Please change your password after logging in for security.
+            </p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${process.env.FRONTEND_URL}" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: bold;">Login to Echo</a>
+            </div>
+          </div>
+        </div>
+      `
+    };
+
+    return this.transporter.sendMail(mailOptions);
+  }
+
   async sendActivityCompletionNotification(email, username, partnerName, activityType, activityName) {
     const activityTypeNames = {
       'game': 'Game',

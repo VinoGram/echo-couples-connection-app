@@ -131,6 +131,36 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// Forgot password
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    const user = await User.findOne({ where: { email } });
+    if (!user) {
+      return res.status(404).json({ error: 'Email not found' });
+    }
+
+    // Generate temporary password
+    const tempPassword = Math.random().toString(36).slice(-8);
+    
+    // Update user with temporary password
+    await user.update({ password: tempPassword });
+    
+    // Send email with temporary password
+    try {
+      const emailService = require('../services/emailService');
+      await emailService.sendTempPassword(email, user.username, tempPassword);
+    } catch (emailError) {
+      console.error('Failed to send temp password email:', emailError);
+    }
+    
+    res.json({ message: 'Temporary password sent to your email' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get current user
 router.get('/me', auth, async (req, res) => {
   try {
