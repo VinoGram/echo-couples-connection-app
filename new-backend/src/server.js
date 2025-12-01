@@ -42,10 +42,40 @@ connectDB().then(async () => {
   // Ensure tables exist
   const CoupleActivity = require('./models/CoupleActivity');
   const OTP = require('./models/OTP');
+  const Question = require('./models/Question');
   await CoupleActivity.sync({ alter: true });
   await OTP.sync({ alter: true });
-  console.log('CoupleActivity and OTP tables synced');
+  await Question.sync({ alter: true });
+  
+  // Seed questions if database is empty
+  const questionCount = await Question.count();
+  if (questionCount === 0) {
+    await seedQuestions();
+  }
+  
+  console.log('All tables synced and questions seeded');
 }).catch(console.error);
+
+// Seed initial questions
+async function seedQuestions() {
+  const Question = require('./models/Question');
+  
+  const questions = [
+    { text: "What makes you feel most loved by me?", type: 'open_ended', category: 'relationship', difficulty: 'easy' },
+    { text: "What's your favorite memory of us together?", type: 'open_ended', category: 'memories', difficulty: 'easy' },
+    { text: "What's one dream you'd like us to pursue together?", type: 'open_ended', category: 'deep', difficulty: 'hard' },
+    { text: "What's your ideal date night?", type: 'open_ended', category: 'fun', difficulty: 'easy' },
+    { text: "How do you envision our future family?", type: 'open_ended', category: 'deep', difficulty: 'hard' },
+    { text: "What's the silliest thing we've done together?", type: 'open_ended', category: 'fun', difficulty: 'easy' },
+    { text: "What does unconditional love mean to you?", type: 'open_ended', category: 'relationship', difficulty: 'hard' },
+    { text: "Where would you like to go on our next adventure?", type: 'open_ended', category: 'fun', difficulty: 'medium' },
+    { text: "What family traditions would you like to start?", type: 'open_ended', category: 'deep', difficulty: 'hard' },
+    { text: "What's your favorite way to show affection?", type: 'open_ended', category: 'relationship', difficulty: 'medium' }
+  ];
+  
+  await Question.bulkCreate(questions);
+  console.log(`Seeded ${questions.length} questions to database`);
+}
 
 // Middleware
 app.use(helmet());

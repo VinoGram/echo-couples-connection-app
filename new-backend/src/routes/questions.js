@@ -277,9 +277,44 @@ router.post('/submit', auth, async (req, res) => {
 router.get('/browse', auth, async (req, res) => {
   try {
     const { category, depth } = req.query;
+    const where = { isActive: true };
     
-    // Always return sample questions for now since DB might be empty
-    const questions = getSampleQuestions(category, depth);
+    // Map frontend categories to backend categories
+    const categoryMap = {
+      'love': 'relationship',
+      'memories': 'memories', 
+      'desires': 'deep',
+      'dates': 'fun',
+      'finance': 'personal',
+      'family': 'personal',
+      'future': 'deep',
+      'fun': 'fun'
+    };
+    
+    if (category && category !== 'all') {
+      const mappedCategory = categoryMap[category] || category;
+      where.category = mappedCategory;
+    }
+    
+    // Handle depth filter
+    if (depth && depth !== 'all') {
+      if (depth === 'light') {
+        where.difficulty = { [Op.in]: ['easy', 'medium'] };
+      } else if (depth === 'deep') {
+        where.difficulty = 'hard';
+      }
+    }
+    
+    let questions = await Question.findAll({
+      where,
+      limit: 20
+    });
+    
+    // Fallback to sample questions if DB is empty
+    if (questions.length === 0) {
+      questions = getSampleQuestions(category, depth);
+    }
+    
     res.json({ questions });
   } catch (error) {
     console.error('Browse questions error:', error);
