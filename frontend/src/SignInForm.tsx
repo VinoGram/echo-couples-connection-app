@@ -170,8 +170,24 @@ export function SignInForm({ onLogin }: SignInFormProps) {
                   await api.forgotPassword(email);
                   toast.success("Temporary password sent to your email!");
                   setFlow("signIn");
-                } catch (error) {
-                  toast.error("Email not found. Please check your email address.");
+                } catch (error: any) {
+                  const errorData = error.message;
+                  if (errorData.includes('tempPassword')) {
+                    // Extract temp password from error message
+                    try {
+                      const response = JSON.parse(errorData.split('API Error: ')[1]);
+                      if (response.tempPassword) {
+                        toast.success(`Your temporary password: ${response.tempPassword}`);
+                        toast.info('Please save this password and change it after logging in.');
+                      } else {
+                        toast.error("Email not found. Please check your email address.");
+                      }
+                    } catch {
+                      toast.error("Email not found. Please check your email address.");
+                    }
+                  } else {
+                    toast.error("Email not found. Please check your email address.");
+                  }
                 } finally {
                   setSubmitting(false);
                 }

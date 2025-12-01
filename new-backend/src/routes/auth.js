@@ -160,7 +160,12 @@ router.post('/forgot-password', async (req, res) => {
       res.json({ message: 'Temporary password sent to your email' });
     } catch (emailError) {
       console.error('Failed to send temp password email:', emailError);
-      res.status(500).json({ error: 'Failed to send email. Please try again or contact support.' });
+      // Fallback: Show temp password in response if email fails
+      res.json({ 
+        message: 'Email service unavailable. Your temporary password is:', 
+        tempPassword: tempPassword,
+        note: 'Please save this password and change it after logging in.' 
+      });
     }
   } catch (error) {
     console.error('Forgot password error:', error);
