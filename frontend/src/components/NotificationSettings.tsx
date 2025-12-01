@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { api } from '../lib/api'
-import { Bell, BellOff, Clock, Heart, Zap, Trophy, Settings } from 'lucide-react'
+import { Bell, BellOff, Clock, Heart, Zap, Trophy, Settings, Lock } from 'lucide-react'
 
 interface NotificationPreferences {
   dailyQuestion: boolean
@@ -25,6 +25,10 @@ export function NotificationSettings() {
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [changingPassword, setChangingPassword] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
 
   useEffect(() => {
     loadPreferences()
@@ -77,6 +81,36 @@ export function NotificationSettings() {
       toast.error('Failed to unsubscribe')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword) {
+      toast.error('Please fill in all password fields')
+      return
+    }
+    
+    if (newPassword.length < 6) {
+      toast.error('New password must be at least 6 characters')
+      return
+    }
+    
+    if (newPassword !== confirmPassword) {
+      toast.error('New passwords do not match')
+      return
+    }
+    
+    setChangingPassword(true)
+    try {
+      await api.changePassword(currentPassword, newPassword)
+      toast.success('Password changed successfully')
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to change password')
+    } finally {
+      setChangingPassword(false)
     }
   }
 
@@ -288,6 +322,69 @@ export function NotificationSettings() {
               You can always re-enable notifications later
             </p>
           </div>
+        </div>
+      </div>
+
+      {/* Change Password Section */}
+      <div className="bg-white rounded-3xl p-8 shadow-xl border border-pink-100">
+        <div className="flex items-center gap-4 mb-6">
+          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center">
+            <Lock className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-800">Change Password</h2>
+            <p className="text-gray-600">Update your account password</p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Current Password
+            </label>
+            <input
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+              placeholder="Enter current password"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              New Password
+            </label>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+              placeholder="Enter new password (min 6 characters)"
+              minLength={6}
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Confirm New Password
+            </label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+              placeholder="Confirm new password"
+            />
+          </div>
+          
+          <button
+            onClick={handleChangePassword}
+            disabled={changingPassword || !currentPassword || !newPassword || !confirmPassword}
+            className="w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white font-semibold py-3 px-6 rounded-xl hover:from-blue-600 hover:to-purple-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+          >
+            {changingPassword ? 'Changing Password...' : 'Change Password'}
+          </button>
         </div>
       </div>
     </div>

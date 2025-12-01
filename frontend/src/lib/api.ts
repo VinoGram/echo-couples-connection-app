@@ -115,6 +115,13 @@ class ApiClient {
     })
   }
 
+  async changePassword(currentPassword: string, newPassword: string) {
+    return this.request('/auth/change-password', {
+      method: 'PUT',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    })
+  }
+
   // Couples
   async createCouple() {
     return this.request('/couples/create', { method: 'POST' })

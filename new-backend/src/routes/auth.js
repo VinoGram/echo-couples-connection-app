@@ -161,6 +161,31 @@ router.post('/forgot-password', async (req, res) => {
   }
 });
 
+// Change password
+router.put('/change-password', auth, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    }
+    
+    const user = await User.findByPk(req.user.id);
+    
+    // Verify current password
+    if (!(await user.comparePassword(currentPassword))) {
+      return res.status(400).json({ error: 'Current password is incorrect' });
+    }
+    
+    // Update password
+    await user.update({ password: newPassword });
+    
+    res.json({ message: 'Password updated successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get current user
 router.get('/me', auth, async (req, res) => {
   try {
