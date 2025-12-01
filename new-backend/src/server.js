@@ -39,10 +39,12 @@ const io = socketIo(server, {
 
 // Connect to database
 connectDB().then(async () => {
-  // Ensure CoupleActivity table exists
+  // Ensure tables exist
   const CoupleActivity = require('./models/CoupleActivity');
+  const OTP = require('./models/OTP');
   await CoupleActivity.sync({ alter: true });
-  console.log('CoupleActivity table synced');
+  await OTP.sync({ alter: true });
+  console.log('CoupleActivity and OTP tables synced');
 }).catch(console.error);
 
 // Middleware

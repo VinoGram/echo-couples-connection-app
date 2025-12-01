@@ -147,18 +147,16 @@ router.post('/forgot-password', async (req, res) => {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
     
-    // Store OTP directly in user record
-    await user.update({ 
-      preferences: {
-        ...user.preferences,
-        resetOTP: otp,
-        resetOTPExpiry: otpExpiry.toISOString()
-      }
+    // Store OTP in dedicated table
+    const OTP = require('../models/OTP');
+    await OTP.destroy({ where: { email } }); // Remove any existing OTP
+    await OTP.create({
+      email,
+      otp,
+      expiresAt: otpExpiry
     });
     
-    console.log('OTP stored in database:', { otp, expiry: otpExpiry.toISOString() });
-    
-    console.log('Generated OTP for:', email);
+    console.log('OTP stored in OTP table:', { email, otp, expiry: otpExpiry.toISOString() });
     
     res.json({ 
       message: 'OTP generated successfully',
@@ -209,38 +207,31 @@ router.post('/verify-otp', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
     
-    // Get fresh user data from database
-    const freshUser = await User.findOne({ where: { email } });
-    const preferences = freshUser.preferences || {};
-    const storedOTP = preferences.resetOTP;
-    const otpExpiry = preferences.resetOTPExpiry ? new Date(preferences.resetOTPExpiry) : null;
+    // Get OTP from dedicated table
+    const OTP = require('../models/OTP');
+    const otpRecord = await OTP.findOne({ where: { email } });
     
-    console.log('Stored OTP data:', { storedOTP, otpExpiry, currentTime: new Date(), userPreferences: preferences });
+    console.log('OTP record found:', otpRecord ? { otp: otpRecord.otp, expiresAt: otpRecord.expiresAt } : 'No record');
     
-    if (!storedOTP) {
+    if (!otpRecord) {
       console.log('No OTP found for user');
       return res.status(400).json({ error: 'No OTP found. Please generate a new one.' });
     }
     
-    if (storedOTP.toString() !== otp.toString()) {
-      console.log('OTP mismatch:', { stored: storedOTP, provided: otp });
+    if (otpRecord.otp !== otp) {
+      console.log('OTP mismatch:', { stored: otpRecord.otp, provided: otp });
       return res.status(400).json({ error: 'Invalid OTP' });
     }
     
-    if (otpExpiry && new Date() > otpExpiry) {
+    if (new Date() > otpRecord.expiresAt) {
       console.log('OTP expired');
+      await OTP.destroy({ where: { email } }); // Clean up expired OTP
       return res.status(400).json({ error: 'OTP has expired' });
     }
     
-    // Update password and clear OTP
-    const updatedPreferences = { ...preferences };
-    delete updatedPreferences.resetOTP;
-    delete updatedPreferences.resetOTPExpiry;
-    
-    await user.update({ 
-      password: newPassword,
-      preferences: updatedPreferences
-    });
+    // Update password and delete OTP
+    await user.update({ password: newPassword });
+    await OTP.destroy({ where: { email } });
     
     console.log('Password reset successful for:', email);
     res.json({ message: 'Password reset successfully' });
