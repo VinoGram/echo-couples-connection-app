@@ -168,6 +168,28 @@ router.post('/forgot-password', async (req, res) => {
   }
 });
 
+// Debug endpoint to check OTP data
+router.post('/debug-otp', async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ where: { email } });
+    if (!user) {
+      return res.json({ error: 'User not found' });
+    }
+    
+    const preferences = user.preferences || {};
+    res.json({
+      email,
+      hasOTP: !!preferences.resetOTP,
+      otp: preferences.resetOTP,
+      expiry: preferences.resetOTPExpiry,
+      isExpired: preferences.resetOTPExpiry ? new Date() > new Date(preferences.resetOTPExpiry) : null
+    });
+  } catch (error) {
+    res.json({ error: error.message });
+  }
+});
+
 // Verify OTP and reset password
 router.post('/verify-otp', async (req, res) => {
   try {
