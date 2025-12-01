@@ -9,16 +9,8 @@ const router = express.Router();
 // Get questions by category
 router.get('/', auth, async (req, res) => {
   try {
-    const { category, difficulty, limit = 10 } = req.query;
-    
-    const where = { isActive: true };
-    if (category) where.category = category;
-    if (difficulty) where.difficulty = difficulty;
-
-    const questions = await Question.findAll({ 
-      where,
-      limit: Math.min(parseInt(limit) || 10, 100)
-    });
+    // Return sample questions for now
+    const questions = getSampleQuestions('all', 'all').slice(0, 10);
     res.json(questions);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -285,57 +277,14 @@ router.post('/submit', auth, async (req, res) => {
 router.get('/browse', auth, async (req, res) => {
   try {
     const { category, depth } = req.query;
-    const where = { isActive: true };
     
-    // Map frontend categories to backend categories
-    const categoryMap = {
-      'love': 'relationship',
-      'memories': 'memories', 
-      'desires': 'deep',
-      'dates': 'fun',
-      'finance': 'personal',
-      'family': 'personal',
-      'future': 'deep',
-      'fun': 'fun'
-    };
-    
-    if (category && category !== 'all') {
-      const mappedCategory = categoryMap[category] || category;
-      where.category = mappedCategory;
-    }
-    
-    // Handle depth filter
-    if (depth && depth !== 'all') {
-      if (depth === 'light') {
-        where.difficulty = { [Op.in]: ['easy', 'medium'] };
-      } else if (depth === 'deep') {
-        where.difficulty = 'hard';
-      }
-    }
-    
-    console.log('Browse questions - where clause:', where);
-    
-    let questions = await Question.findAll({
-      where,
-      limit: 20
-    });
-    
-    // If no questions in database, return sample questions
-    if (questions.length === 0) {
-      questions = getSampleQuestions(category, depth);
-    }
-    
-    // Return in expected format
+    // Always return sample questions for now since DB might be empty
+    const questions = getSampleQuestions(category, depth);
     res.json({ questions });
   } catch (error) {
     console.error('Browse questions error:', error);
-    try {
-      // Fallback to sample questions on error
-      const questions = getSampleQuestions(req.query.category, req.query.depth);
-      res.json({ questions });
-    } catch (fallbackError) {
-      res.status(500).json({ error: 'Unable to retrieve questions' });
-    }
+    const questions = getSampleQuestions(req.query.category, req.query.depth);
+    res.json({ questions });
   }
 });
 
