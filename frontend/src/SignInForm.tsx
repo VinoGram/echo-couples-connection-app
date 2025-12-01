@@ -217,6 +217,7 @@ export function SignInForm({ onLogin }: SignInFormProps) {
               className="auth-input-field"
               id="newPassword"
               minLength={6}
+              autoComplete="new-password"
             />
             <button
               type="button"

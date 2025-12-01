@@ -170,6 +170,7 @@ router.post('/forgot-password', async (req, res) => {
 router.post('/verify-otp', async (req, res) => {
   try {
     const { email, otp, newPassword } = req.body;
+    console.log('OTP verification request:', { email, otp: otp, newPasswordLength: newPassword?.length });
     
     if (!newPassword || newPassword.length < 6) {
       return res.status(400).json({ error: 'New password must be at least 6 characters' });
@@ -177,31 +178,45 @@ router.post('/verify-otp', async (req, res) => {
     
     const user = await User.findOne({ where: { email } });
     if (!user) {
+      console.log('User not found for OTP verification:', email);
       return res.status(404).json({ error: 'User not found' });
     }
     
     const preferences = user.preferences || {};
     const storedOTP = preferences.resetOTP;
-    const otpExpiry = new Date(preferences.resetOTPExpiry);
+    const otpExpiry = preferences.resetOTPExpiry ? new Date(preferences.resetOTPExpiry) : null;
     
-    if (!storedOTP || storedOTP !== otp) {
+    console.log('Stored OTP data:', { storedOTP, otpExpiry, currentTime: new Date() });
+    
+    if (!storedOTP) {
+      console.log('No OTP found for user');
+      return res.status(400).json({ error: 'No OTP found. Please generate a new one.' });
+    }
+    
+    if (storedOTP.toString() !== otp.toString()) {
+      console.log('OTP mismatch:', { stored: storedOTP, provided: otp });
       return res.status(400).json({ error: 'Invalid OTP' });
     }
     
-    if (new Date() > otpExpiry) {
+    if (otpExpiry && new Date() > otpExpiry) {
+      console.log('OTP expired');
       return res.status(400).json({ error: 'OTP has expired' });
     }
     
     // Update password and clear OTP
-    preferences.resetOTP = null;
-    preferences.resetOTPExpiry = null;
+    const updatedPreferences = { ...preferences };
+    delete updatedPreferences.resetOTP;
+    delete updatedPreferences.resetOTPExpiry;
+    
     await user.update({ 
       password: newPassword,
-      preferences 
+      preferences: updatedPreferences
     });
     
+    console.log('Password reset successful for:', email);
     res.json({ message: 'Password reset successfully' });
   } catch (error) {
+    console.error('OTP verification error:', error);
     res.status(500).json({ error: error.message });
   }
 });
