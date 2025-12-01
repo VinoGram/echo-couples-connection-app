@@ -272,7 +272,16 @@ router.get('/history', auth, async (req, res) => {
         if (!response) return null;
         if (typeof response === 'string') return response;
         if (response.answers && Array.isArray(response.answers)) {
-          return response.answers;
+          // Format each answer to show the actual choice
+          return response.answers.map(answer => {
+            if (typeof answer === 'object' && answer.userChoice) {
+              return {
+                question: `${answer.question?.option1} vs ${answer.question?.option2}`,
+                choice: answer.userChoice
+              };
+            }
+            return answer;
+          });
         }
         return response;
       };
