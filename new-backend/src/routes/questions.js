@@ -297,6 +297,25 @@ router.post('/submit', auth, async (req, res) => {
     
     await currentUser.update({ stats: updatedStats });
     
+    // Send notification to partner about daily question answer
+    if (partnerId) {
+      try {
+        const partner = await User.findByPk(partnerId);
+        if (partner && partner.preferences?.notifications?.partnerAnswered !== false) {
+          const emailService = require('../services/emailService');
+          await emailService.sendActivityCompletionNotification(
+            partner.email,
+            partner.username,
+            currentUser.username,
+            'daily_question',
+            'Daily Question'
+          );
+        }
+      } catch (emailError) {
+        console.error('Failed to send partner notification for daily question:', emailError);
+      }
+    }
+    
     // Check if partner has answered
     const partnerAnswerKey = partnerId ? `${today}_${partnerId}` : null;
     const partnerAnswer = partnerAnswerKey ? await memcached.get(partnerAnswerKey) : null;
