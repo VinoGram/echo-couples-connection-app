@@ -147,11 +147,14 @@ router.post('/forgot-password', async (req, res) => {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
     
-    // Store OTP in user preferences (database)
-    const preferences = user.preferences || {};
-    preferences.resetOTP = otp;
-    preferences.resetOTPExpiry = otpExpiry.toISOString();
-    await user.update({ preferences });
+    // Store OTP directly in user record
+    await user.update({ 
+      preferences: {
+        ...user.preferences,
+        resetOTP: otp,
+        resetOTPExpiry: otpExpiry.toISOString()
+      }
+    });
     
     console.log('OTP stored in database:', { otp, expiry: otpExpiry.toISOString() });
     
@@ -206,9 +209,9 @@ router.post('/verify-otp', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
     
-    // Refresh user data from database
-    await user.reload();
-    const preferences = user.preferences || {};
+    // Get fresh user data from database
+    const freshUser = await User.findOne({ where: { email } });
+    const preferences = freshUser.preferences || {};
     const storedOTP = preferences.resetOTP;
     const otpExpiry = preferences.resetOTPExpiry ? new Date(preferences.resetOTPExpiry) : null;
     
