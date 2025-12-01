@@ -47,6 +47,9 @@ connectDB().then(async () => {
   await OTP.sync({ alter: true });
   await Question.sync({ alter: true });
   
+  const Message = require('./models/Message');
+  await Message.sync({ alter: true });
+  
   // Seed questions if database is empty
   const questionCount = await Question.count();
   if (questionCount === 0) {

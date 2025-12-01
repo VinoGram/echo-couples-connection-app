@@ -5,10 +5,29 @@ const User = require('../models/User');
 
 const router = express.Router();
 
-// Get messages
+// Get messages for current couple
 router.get('/', auth, async (req, res) => {
   try {
+    const currentUser = await User.findByPk(req.user.id);
+    
+    if (!currentUser.partnerId) {
+      return res.json([]); // No partner, no messages
+    }
+    
+    // Get messages between user and their partner only
     const messages = await Message.findAll({
+      where: {
+        [require('sequelize').Op.or]: [
+          {
+            senderId: req.user.id,
+            receiverId: currentUser.partnerId
+          },
+          {
+            senderId: currentUser.partnerId,
+            receiverId: req.user.id
+          }
+        ]
+      },
       include: [{
         model: User,
         as: 'sender',
@@ -17,6 +36,7 @@ router.get('/', auth, async (req, res) => {
       order: [['createdAt', 'ASC']],
       limit: 100
     });
+    
     res.json(messages);
   } catch (error) {
     console.error('Get messages error:', error);
@@ -24,7 +44,7 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// Send message
+// Send message to partner
 router.post('/', auth, async (req, res) => {
   try {
     const { content } = req.body;
@@ -33,8 +53,15 @@ router.post('/', auth, async (req, res) => {
       return res.status(400).json({ error: 'Message content required' });
     }
     
+    const currentUser = await User.findByPk(req.user.id);
+    
+    if (!currentUser.partnerId) {
+      return res.status(400).json({ error: 'No partner connected' });
+    }
+    
     const message = await Message.create({
       senderId: req.user.id,
+      receiverId: currentUser.partnerId,
       content: content.trim(),
       messageType: 'text'
     });
@@ -71,18 +98,23 @@ router.put('/read', auth, async (req, res) => {
     
     readLimiter.set(userId, now);
     
-    await Message.update(
-      { 
-        isRead: true, 
-        readAt: new Date() 
-      },
-      { 
-        where: { 
-          senderId: { [require('sequelize').Op.ne]: req.user.id },
-          isRead: false
+    const currentUser = await User.findByPk(req.user.id);
+    
+    if (currentUser.partnerId) {
+      await Message.update(
+        { 
+          isRead: true, 
+          readAt: new Date() 
+        },
+        { 
+          where: { 
+            senderId: currentUser.partnerId,
+            receiverId: req.user.id,
+            isRead: false
+          }
         }
-      }
-    );
+      );
+    }
     res.json({ success: true });
   } catch (error) {
     console.error('Mark read error:', error);

@@ -15,6 +15,14 @@ const Message = sequelize.define('Message', {
       key: 'id'
     }
   },
+  receiverId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: {
+      model: 'Users',
+      key: 'id'
+    }
+  },
   coupleId: {
     type: DataTypes.UUID,
     allowNull: true
