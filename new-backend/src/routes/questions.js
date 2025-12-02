@@ -20,6 +20,8 @@ router.get('/', auth, async (req, res) => {
 // Get adaptive questions (AI-powered with user data training)
 router.get('/adaptive', auth, async (req, res) => {
   try {
+    console.log('Generating adaptive questions using local AI...');
+    
     // Get user's conversation history and preferences for AI training
     const User = require('../models/User');
     const currentUser = await User.findByPk(req.user.id);
@@ -31,6 +33,7 @@ router.get('/adaptive', auth, async (req, res) => {
     // Generate adaptive questions based on user data
     const adaptiveQuestions = await generateAdaptiveQuestions(userData, req.query.category);
     
+    console.log('Generated', adaptiveQuestions.length, 'adaptive questions');
     res.json(adaptiveQuestions);
   } catch (error) {
     console.error('Adaptive questions error:', error.message);
