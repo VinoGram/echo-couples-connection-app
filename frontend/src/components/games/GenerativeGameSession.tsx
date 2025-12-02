@@ -22,7 +22,7 @@ export function GenerativeGameSession({ onBack }: GenerativeGameSessionProps) {
   const generateInitialQuestions = async () => {
     setLoading(true)
     try {
-      const response = await fetch('http://localhost:8000/questions/generate', {
+      const response = await fetch(`${import.meta.env.VITE_ML_SERVICE_URL}/questions/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -46,7 +46,7 @@ export function GenerativeGameSession({ onBack }: GenerativeGameSessionProps) {
   const generateMoreQuestions = async () => {
     setGenerating(true)
     try {
-      const response = await fetch('http://localhost:8000/questions/adaptive', {
+      const response = await fetch(`${import.meta.env.VITE_ML_SERVICE_URL}/questions/adaptive`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -76,7 +76,7 @@ export function GenerativeGameSession({ onBack }: GenerativeGameSessionProps) {
         answer
       }))
 
-      const response = await fetch('http://localhost:8000/questions/follow-up', {
+      const response = await fetch(`${import.meta.env.VITE_ML_SERVICE_URL}/questions/follow-up`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

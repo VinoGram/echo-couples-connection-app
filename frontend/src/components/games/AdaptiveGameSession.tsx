@@ -45,7 +45,7 @@ export function AdaptiveGameSession({ gameType, onBack }: AdaptiveGameSessionPro
       const coupleId = 'couple_123' // Get from auth context
       const userId = 'user_123' // Get from auth context
       
-      const response = await fetch('http://localhost:8000/games/create-session', {
+      const response = await fetch(`${import.meta.env.VITE_ML_SERVICE_URL}/games/create-session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ couple_id: coupleId, game_type: gameType, user_id: userId })
@@ -83,7 +83,7 @@ export function AdaptiveGameSession({ gameType, onBack }: AdaptiveGameSessionPro
     const userId = 'user_123' // Get from auth context
 
     try {
-      await fetch('http://localhost:8000/games/submit-response', {
+      await fetch(`${import.meta.env.VITE_ML_SERVICE_URL}/games/submit-response`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
