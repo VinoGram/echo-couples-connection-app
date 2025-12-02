@@ -17,33 +17,22 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// Get adaptive questions (calls ML service)
+// Get adaptive questions (uses fallback questions)
 router.get('/adaptive', auth, async (req, res) => {
   try {
-    if (!process.env.ML_SERVICE_URL) {
-      throw new Error('ML service not configured');
-    }
+    // Use fallback adaptive questions since ML service is not reliable
+    const adaptiveQuestions = [
+      { id: 1, text: "What's your favorite way to spend quality time together?", category: 'connection', type: 'open_ended' },
+      { id: 2, text: "How do you prefer to handle disagreements?", category: 'communication', type: 'open_ended' },
+      { id: 3, text: "What's one thing you'd like to improve in our relationship?", category: 'growth', type: 'open_ended' },
+      { id: 4, text: "What makes you feel most appreciated?", category: 'love', type: 'open_ended' },
+      { id: 5, text: "What's a goal you'd like us to work on together?", category: 'future', type: 'open_ended' }
+    ];
     
-    const mlResponse = await axios.post(`${process.env.ML_SERVICE_URL}/questions/adaptive`, {
-      user_id: req.user.id,
-      partner_id: req.query.partnerId || 'unknown',
-      category: req.query.category,
-      count: 5
-    });
-
-    res.json(mlResponse.data.questions);
+    res.json(adaptiveQuestions);
   } catch (error) {
-    console.error('ML service error:', error.message);
-    try {
-      // Fallback to random questions
-      const questions = await Question.findAll({ 
-        where: { isActive: true },
-        limit: 10
-      });
-      res.json(questions);
-    } catch (dbError) {
-      res.status(500).json({ error: 'Service temporarily unavailable' });
-    }
+    console.error('Adaptive questions error:', error.message);
+    res.status(500).json({ error: 'Service temporarily unavailable' });
   }
 });
 
