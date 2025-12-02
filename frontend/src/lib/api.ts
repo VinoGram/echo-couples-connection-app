@@ -189,6 +189,19 @@ class ApiClient {
     })
   }
 
+  async trainAI(questionId: string, answer: string, rating?: number, category?: string, context?: any) {
+    return this.request('/questions/train', {
+      method: 'POST',
+      body: JSON.stringify({ questionId, answer, rating, category, context }),
+    })
+  }
+
+  async getAdaptiveQuestions(category?: string) {
+    const params = new URLSearchParams()
+    if (category) params.append('category', category)
+    return this.request(`/questions/adaptive?${params}`)
+  }
+
   async browseQuestions(category?: string, depth?: string) {
     const params = new URLSearchParams()
     if (category) params.append('category', category)
