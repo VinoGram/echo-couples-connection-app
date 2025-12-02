@@ -42,37 +42,20 @@ export function AdaptiveGameSession({ gameType, onBack }: AdaptiveGameSessionPro
 
   const initializeGame = async () => {
     try {
-      const coupleId = 'couple_123' // Get from auth context
-      const userId = 'user_123' // Get from auth context
-      
-      const response = await fetch(`${import.meta.env.VITE_ML_SERVICE_URL}/games/create-session`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ couple_id: coupleId, game_type: gameType, user_id: userId })
-      })
-      
-      if (!response.ok) {
-        throw new Error('ML service unavailable')
-      }
-      
-      const data = await response.json()
-      setSessionId(data.session_id)
-      setQuestions(data.questions || [])
-      setGamePhase('playing')
-      
-      toast.success(`Adaptive questions selected based on your preferences!`)
-    } catch (error) {
-      console.log('ML service failed, using fallback questions')
-      // Fallback to simple questions
+      // Use fallback questions since ML service is not available
       const fallbackQuestions = [
         { id: 1, text: "What's your favorite thing about our relationship?", type: 'open_ended', category: 'love' },
         { id: 2, text: "What's one goal you'd like us to work on together?", type: 'open_ended', category: 'goals' },
-        { id: 3, text: "What makes you feel most connected to me?", type: 'open_ended', category: 'connection' }
+        { id: 3, text: "What makes you feel most connected to me?", type: 'open_ended', category: 'connection' },
+        { id: 4, text: "How do you prefer to show affection?", type: 'open_ended', category: 'affection' },
+        { id: 5, text: "What's something you appreciate about how we communicate?", type: 'open_ended', category: 'communication' }
       ]
       setSessionId('fallback_session')
       setQuestions(fallbackQuestions)
       setGamePhase('playing')
       toast.success('Game started with curated questions!')
+    } catch (error) {
+      toast.error('Failed to initialize game')
     }
   }
 
@@ -83,17 +66,7 @@ export function AdaptiveGameSession({ gameType, onBack }: AdaptiveGameSessionPro
     const userId = 'user_123' // Get from auth context
 
     try {
-      await fetch(`${import.meta.env.VITE_ML_SERVICE_URL}/games/submit-response`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          session_id: sessionId,
-          user_id: userId,
-          question_id: questionId,
-          response: answer
-        })
-      })
-
+      // Skip ML service submission since it's not available
       setResponses({ ...responses, [questionId]: answer })
 
       if (currentQuestion < questions.length - 1) {

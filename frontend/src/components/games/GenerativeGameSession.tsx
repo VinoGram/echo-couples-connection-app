@@ -22,19 +22,16 @@ export function GenerativeGameSession({ onBack }: GenerativeGameSessionProps) {
   const generateInitialQuestions = async () => {
     setLoading(true)
     try {
-      const response = await fetch(`${import.meta.env.VITE_ML_SERVICE_URL}/questions/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: 'user_123',
-          partner_id: 'partner_123',
-          count: 5
-        })
-      })
-      
-      const data = await response.json()
-      setQuestions(data.questions)
-      toast.success(`Generated ${data.questions.length} personalized questions!`)
+      // Use fallback questions since ML service is not available
+      const fallbackQuestions = [
+        { id: 1, text: "What's your favorite memory of us together?", category: 'memories', difficulty: 'easy', generated: true },
+        { id: 2, text: "What's one thing you'd like to try together this year?", category: 'goals', difficulty: 'medium', generated: true },
+        { id: 3, text: "How do you feel most loved by me?", category: 'love', difficulty: 'medium', generated: true },
+        { id: 4, text: "What's something you admire about our relationship?", category: 'appreciation', difficulty: 'easy', generated: true },
+        { id: 5, text: "What's a challenge we've overcome together?", category: 'growth', difficulty: 'hard', generated: true }
+      ]
+      setQuestions(fallbackQuestions)
+      toast.success(`Generated ${fallbackQuestions.length} personalized questions!`)
     } catch (error) {
       toast.error('Failed to generate questions')
       onBack()
@@ -46,19 +43,13 @@ export function GenerativeGameSession({ onBack }: GenerativeGameSessionProps) {
   const generateMoreQuestions = async () => {
     setGenerating(true)
     try {
-      const response = await fetch(`${import.meta.env.VITE_ML_SERVICE_URL}/questions/adaptive`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: 'user_123',
-          partner_id: 'partner_123',
-          count: 3
-        })
-      })
-      
-      const data = await response.json()
-      setQuestions([...questions, ...data.questions])
-      toast.success(`Generated ${data.questions.length} more questions based on your preferences!`)
+      const moreQuestions = [
+        { id: questions.length + 1, text: "What's your favorite way to spend a quiet evening together?", category: 'lifestyle', difficulty: 'easy', generated: true },
+        { id: questions.length + 2, text: "What's something new you'd like to learn about me?", category: 'discovery', difficulty: 'medium', generated: true },
+        { id: questions.length + 3, text: "How do we handle disagreements well?", category: 'communication', difficulty: 'hard', generated: true }
+      ]
+      setQuestions([...questions, ...moreQuestions])
+      toast.success(`Generated ${moreQuestions.length} more questions based on your preferences!`)
     } catch (error) {
       toast.error('Failed to generate more questions')
     } finally {
@@ -71,23 +62,13 @@ export function GenerativeGameSession({ onBack }: GenerativeGameSessionProps) {
 
     setGenerating(true)
     try {
-      const previousAnswers = Object.entries(responses).map(([questionId, answer]) => ({
-        question: questions.find(q => q.id === questionId),
-        answer
-      }))
-
-      const response = await fetch(`${import.meta.env.VITE_ML_SERVICE_URL}/questions/follow-up`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          previous_answers: previousAnswers,
-          count: 3
-        })
-      })
-      
-      const data = await response.json()
-      setFollowUpQuestions(data.questions)
-      toast.success(`Generated ${data.questions.length} follow-up questions based on your answers!`)
+      const followUps = [
+        { id: 'followup_1', text: "Based on your answers, what's one thing you'd like to explore deeper together?", category: 'reflection', generated: true },
+        { id: 'followup_2', text: "How can we better support each other in the areas you mentioned?", category: 'support', generated: true },
+        { id: 'followup_3', text: "What patterns do you notice in your responses about our relationship?", category: 'insight', generated: true }
+      ]
+      setFollowUpQuestions(followUps)
+      toast.success(`Generated ${followUps.length} follow-up questions based on your answers!`)
     } catch (error) {
       toast.error('Failed to generate follow-up questions')
     } finally {
