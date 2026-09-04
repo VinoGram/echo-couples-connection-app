@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const GameSession = require('../models/GameSession');
 const memcached = require('./memcached');
+const { socketEventLimiter } = require('../middleware/rateLimiter');
 
 module.exports = (io) => {
   // Authentication middleware for socket
@@ -14,6 +15,9 @@ module.exports = (io) => {
       next(new Error('Authentication error'));
     }
   });
+
+  // Per-socket event rate limiting
+  io.use(socketEventLimiter());
 
   io.on('connection', (socket) => {
     console.log(`User ${socket.userId} connected`);

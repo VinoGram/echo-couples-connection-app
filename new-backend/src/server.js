@@ -23,6 +23,7 @@ const quizzesRoutes = require('./routes/quizzes');
 const coupleActivitiesRoutes = require('./routes/coupleActivities');
 const invitationRoutes = require('./routes/invitations');
 const socketHandler = require('./services/socketHandler');
+const { authLimiter, apiLimiter, readLimiter } = require('./middleware/rateLimiter');
 
 const app = express();
 const server = http.createServer(app);
@@ -105,18 +106,18 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/games', gameRoutes);
-app.use('/api/questions', questionRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/exercises', exerciseRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/couples', coupleRoutes);
-app.use('/api/chat', chatRoutes);
-app.use('/api/awards', awardsRoutes);
-app.use('/api/quizzes', quizzesRoutes);
-app.use('/api/activities', coupleActivitiesRoutes);
-app.use('/api/invitations', invitationRoutes);
+app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/games', apiLimiter, gameRoutes);
+app.use('/api/questions', readLimiter, questionRoutes);
+app.use('/api/users', apiLimiter, userRoutes);
+app.use('/api/exercises', apiLimiter, exerciseRoutes);
+app.use('/api/notifications', apiLimiter, notificationRoutes);
+app.use('/api/couples', apiLimiter, coupleRoutes);
+app.use('/api/chat', apiLimiter, chatRoutes);
+app.use('/api/awards', readLimiter, awardsRoutes);
+app.use('/api/quizzes', apiLimiter, quizzesRoutes);
+app.use('/api/activities', apiLimiter, coupleActivitiesRoutes);
+app.use('/api/invitations', apiLimiter, invitationRoutes);
 
 // Socket.io
 socketHandler(io);
