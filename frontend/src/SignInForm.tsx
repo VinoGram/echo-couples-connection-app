@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { api } from "./lib/api";
-import { ensureBackendReady } from "./lib/healthCheck";
+import { wakeUpBackend } from "./lib/healthCheck";
 
 interface SignInFormProps {
   onLogin: () => void;
@@ -19,15 +19,9 @@ export function SignInForm({ onLogin }: SignInFormProps) {
     e.preventDefault();
     setSubmitting(true);
     
-    // Wake up backend first
-    try {
-      await ensureBackendReady();
-    } catch (error) {
-      toast.error('Server is starting up, please try again in a moment');
-      setSubmitting(false);
-      return;
-    }
-    
+    // Kick off a background wake-up ping without blocking the auth request
+    wakeUpBackend();
+
     const formData = new FormData(e.target as HTMLFormElement);
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;

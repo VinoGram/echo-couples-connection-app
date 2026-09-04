@@ -149,8 +149,9 @@ export function QuizHub() {
       }
       
       console.log('Sending request to ML service:', requestBody)
-      
-      const response = await fetch(`${import.meta.env.VITE_ML_SERVICE_URL}/questions/adaptive`, {
+
+      const mlBaseUrl = import.meta.env.VITE_ML_SERVICE_URL || 'http://localhost:8000'
+      const response = await fetch(`${mlBaseUrl}/questions/adaptive`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody)
