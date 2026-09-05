@@ -150,8 +150,8 @@ export function QuizHub() {
       
       console.log('Sending request to ML service:', requestBody)
 
-      const mlBaseUrl = import.meta.env.VITE_ML_SERVICE_URL || 'http://localhost:8000'
-      const response = await fetch(`${mlBaseUrl}/questions/adaptive`, {
+      const mlBaseUrl = import.meta.env.VITE_API_URL || 'https://echo-backend-pml9.onrender.com/api'
+      const response = await fetch(`${mlBaseUrl}/ml/questions/adaptive`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody)

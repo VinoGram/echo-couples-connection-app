@@ -22,6 +22,7 @@ const awardsRoutes = require('./routes/awards');
 const quizzesRoutes = require('./routes/quizzes');
 const coupleActivitiesRoutes = require('./routes/coupleActivities');
 const invitationRoutes = require('./routes/invitations');
+const mlRoutes = require('./routes/ml');
 const socketHandler = require('./services/socketHandler');
 const { authLimiter, apiLimiter, readLimiter } = require('./middleware/rateLimiter');
 
@@ -118,6 +119,7 @@ app.use('/api/awards', readLimiter, awardsRoutes);
 app.use('/api/quizzes', apiLimiter, quizzesRoutes);
 app.use('/api/activities', apiLimiter, coupleActivitiesRoutes);
 app.use('/api/invitations', apiLimiter, invitationRoutes);
+app.use('/api/ml/questions', apiLimiter, mlRoutes);
 
 // Socket.io
 socketHandler(io);
