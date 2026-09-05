@@ -1,40 +1,22 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { toast } from 'sonner'
 import { Monitor, MonitorOff, Users, Wifi, WifiOff } from 'lucide-react'
 import { socketManager } from '../lib/socket'
 
+const ICE_SERVERS = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
+
 export function WatchParty() {
-  const [isSharing, setIsSharing] = useState(false)
+  const [isSharing, setIsSharing]     = useState(false)
   const [isReceiving, setIsReceiving] = useState(false)
-  const [peerConnected, setPeerConnected] = useState(false)
-  const [status, setStatus] = useState<'idle' | 'waiting' | 'connected'>('idle')
+  const [status, setStatus]           = useState<'idle' | 'waiting' | 'connected'>('idle')
 
-  const localVideoRef = useRef<HTMLVideoElement>(null)
+  const localVideoRef  = useRef<HTMLVideoElement>(null)
   const remoteVideoRef = useRef<HTMLVideoElement>(null)
-  const peerRef = useRef<RTCPeerConnection | null>(null)
-  const streamRef = useRef<MediaStream | null>(null)
+  const peerRef        = useRef<RTCPeerConnection | null>(null)
+  const streamRef      = useRef<MediaStream | null>(null)
 
-  const ICE_SERVERS = {
-    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-  }
-
-  useEffect(() => {
-    const socket = socketManager.socket
-    if (!socket) return
-
-    socket.on('watch-party:peer-joined', handlePeerJoined)
-    socket.on('watch-party:signal', handleSignal)
-    socket.on('watch-party:peer-left', handlePeerLeft)
-
-    return () => {
-      socket.off('watch-party:peer-joined', handlePeerJoined)
-      socket.off('watch-party:signal', handleSignal)
-      socket.off('watch-party:peer-left', handlePeerLeft)
-      cleanup()
-    }
-  }, [])
-
-  const createPeer = (initiator: boolean): RTCPeerConnection => {
+  // --- peer factory ---
+  const createPeer = useCallback(() => {
     const peer = new RTCPeerConnection(ICE_SERVERS)
 
     peer.onicecandidate = (e) => {
@@ -48,10 +30,9 @@ export function WatchParty() {
     peer.ontrack = (e) => {
       if (remoteVideoRef.current) {
         remoteVideoRef.current.srcObject = e.streams[0]
-        setIsReceiving(true)
-        setPeerConnected(true)
-        setStatus('connected')
       }
+      setIsReceiving(true)
+      setStatus('connected')
     }
 
     peer.onconnectionstatechange = () => {
@@ -61,35 +42,30 @@ export function WatchParty() {
     }
 
     return peer
-  }
+  }, [])
 
-  const handlePeerJoined = async () => {
-    // We are the initiator — create offer
-    const peer = createPeer(true)
+  // --- signaling handlers (use useCallback so they always read latest refs) ---
+  const handlePeerJoined = useCallback(async () => {
+    const peer = createPeer()
     peerRef.current = peer
 
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track =>
-        peer.addTrack(track, streamRef.current!)
-      )
-    }
+    // Attach tracks — streamRef.current is always current because it's a ref
+    streamRef.current?.getTracks().forEach(track =>
+      peer.addTrack(track, streamRef.current!)
+    )
 
     const offer = await peer.createOffer()
     await peer.setLocalDescription(offer)
     socketManager.socket?.emit('watch-party:signal', { signal: offer })
-    setPeerConnected(true)
     setStatus('connected')
-    toast.success('Partner joined the watch party!')
-  }
+    toast.success('Partner joined!')
+  }, [createPeer])
 
-  const handleSignal = async ({ signal }: any) => {
+  const handleSignal = useCallback(async ({ signal }: any) => {
     if (!peerRef.current) {
-      // We are the receiver — create peer on first signal
-      const peer = createPeer(false)
-      peerRef.current = peer
+      peerRef.current = createPeer()
     }
-
-    const peer = peerRef.current!
+    const peer = peerRef.current
 
     if (signal.type === 'offer') {
       await peer.setRemoteDescription(new RTCSessionDescription(signal))
@@ -99,20 +75,37 @@ export function WatchParty() {
     } else if (signal.type === 'answer') {
       await peer.setRemoteDescription(new RTCSessionDescription(signal))
     } else if (signal.type === 'candidate') {
-      await peer.addIceCandidate(new RTCIceCandidate(signal.candidate))
+      try { await peer.addIceCandidate(new RTCIceCandidate(signal.candidate)) } catch {}
     }
-  }
+  }, [createPeer])
 
-  const handlePeerLeft = () => {
-    setPeerConnected(false)
-    setIsReceiving(false)
-    setStatus('idle')
-    if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null
+  const handlePeerLeft = useCallback(() => {
     peerRef.current?.close()
     peerRef.current = null
-    toast.info('Partner disconnected from watch party')
-  }
+    if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null
+    setIsReceiving(false)
+    setStatus('idle')
+    toast.info('Partner disconnected')
+  }, [])
 
+  // --- register socket listeners ---
+  useEffect(() => {
+    const socket = socketManager.socket
+    if (!socket) return
+
+    socket.on('watch-party:peer-joined', handlePeerJoined)
+    socket.on('watch-party:signal',      handleSignal)
+    socket.on('watch-party:peer-left',   handlePeerLeft)
+
+    return () => {
+      socket.off('watch-party:peer-joined', handlePeerJoined)
+      socket.off('watch-party:signal',      handleSignal)
+      socket.off('watch-party:peer-left',   handlePeerLeft)
+      peerRef.current?.close()
+    }
+  }, [handlePeerJoined, handleSignal, handlePeerLeft])
+
+  // --- actions ---
   const startSharing = async () => {
     try {
       const stream = await navigator.mediaDevices.getDisplayMedia({
@@ -120,18 +113,7 @@ export function WatchParty() {
         audio: true
       })
       streamRef.current = stream
-
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream
-      }
-
-      // Add tracks to existing peer if already connected
-      if (peerRef.current) {
-        stream.getTracks().forEach(track =>
-          peerRef.current!.addTrack(track, stream)
-        )
-      }
-
+      if (localVideoRef.current) localVideoRef.current.srcObject = stream
       stream.getVideoTracks()[0].onended = stopSharing
 
       socketManager.socket?.emit('watch-party:join')
@@ -139,9 +121,7 @@ export function WatchParty() {
       setStatus('waiting')
       toast.success('Screen sharing started — waiting for partner')
     } catch (err: any) {
-      if (err.name !== 'NotAllowedError') {
-        toast.error('Could not start screen share')
-      }
+      if (err.name !== 'NotAllowedError') toast.error('Could not start screen share')
     }
   }
 
@@ -150,22 +130,16 @@ export function WatchParty() {
     streamRef.current = null
     if (localVideoRef.current) localVideoRef.current.srcObject = null
     socketManager.socket?.emit('watch-party:leave')
+    peerRef.current?.close()
+    peerRef.current = null
     setIsSharing(false)
     setStatus('idle')
-    cleanup()
   }
 
   const joinParty = () => {
     socketManager.socket?.emit('watch-party:join')
     setStatus('waiting')
-    toast.info('Joining watch party — waiting for partner to share screen')
-  }
-
-  const cleanup = () => {
-    peerRef.current?.close()
-    peerRef.current = null
-    setPeerConnected(false)
-    setIsReceiving(false)
+    toast.info('Joining — waiting for partner to share screen')
   }
 
   return (
@@ -177,7 +151,7 @@ export function WatchParty() {
         <p className="text-gray-600">Share your screen and watch movies or shows together in real-time</p>
       </div>
 
-      {/* Status bar */}
+      {/* Status */}
       <div className={`flex items-center justify-center gap-2 py-3 px-6 rounded-2xl text-sm font-medium ${
         status === 'connected' ? 'bg-green-50 text-green-700 border border-green-200' :
         status === 'waiting'   ? 'bg-yellow-50 text-yellow-700 border border-yellow-200' :
@@ -187,77 +161,47 @@ export function WatchParty() {
          status === 'waiting'   ? <Users className="w-4 h-4 animate-pulse" /> :
                                   <WifiOff className="w-4 h-4" />}
         {status === 'connected' ? 'Connected — watching together' :
-         status === 'waiting'   ? 'Waiting for partner...' :
-                                  'Not connected'}
+         status === 'waiting'   ? 'Waiting for partner...' : 'Not connected'}
       </div>
 
       {/* Video panels */}
       <div className="grid md:grid-cols-2 gap-4">
-        <div className="bg-gray-900 rounded-2xl overflow-hidden aspect-video relative">
-          <video
-            ref={localVideoRef}
-            autoPlay
-            muted
-            playsInline
-            className="w-full h-full object-contain"
-          />
-          {!isSharing && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center text-gray-400">
-                <Monitor className="w-12 h-12 mx-auto mb-2 opacity-40" />
-                <p className="text-sm">Your screen</p>
+        {[
+          { ref: localVideoRef,  muted: true,  active: isSharing,   label: 'You' },
+          { ref: remoteVideoRef, muted: false, active: isReceiving, label: 'Partner' }
+        ].map(({ ref, muted, active, label }) => (
+          <div key={label} className="bg-gray-900 rounded-2xl overflow-hidden aspect-video relative">
+            <video ref={ref} autoPlay muted={muted} playsInline className="w-full h-full object-contain" />
+            {!active && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center text-gray-400">
+                  <Monitor className="w-12 h-12 mx-auto mb-2 opacity-40" />
+                  <p className="text-sm">{label}'s screen</p>
+                </div>
               </div>
-            </div>
-          )}
-          <div className="absolute bottom-2 left-3 text-xs text-white/60">You</div>
-        </div>
-
-        <div className="bg-gray-900 rounded-2xl overflow-hidden aspect-video relative">
-          <video
-            ref={remoteVideoRef}
-            autoPlay
-            playsInline
-            className="w-full h-full object-contain"
-          />
-          {!isReceiving && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center text-gray-400">
-                <Monitor className="w-12 h-12 mx-auto mb-2 opacity-40" />
-                <p className="text-sm">Partner's screen</p>
-              </div>
-            </div>
-          )}
-          <div className="absolute bottom-2 left-3 text-xs text-white/60">Partner</div>
-        </div>
+            )}
+            <div className="absolute bottom-2 left-3 text-xs text-white/60">{label}</div>
+          </div>
+        ))}
       </div>
 
       {/* Controls */}
       <div className="flex flex-col sm:flex-row gap-3 justify-center">
         {!isSharing ? (
-          <button
-            onClick={startSharing}
-            className="flex items-center justify-center gap-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white font-bold py-3 px-8 rounded-xl hover:shadow-lg transition-all"
-          >
-            <Monitor className="w-5 h-5" />
-            Share My Screen
+          <button onClick={startSharing}
+            className="flex items-center justify-center gap-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white font-bold py-3 px-8 rounded-xl hover:shadow-lg transition-all">
+            <Monitor className="w-5 h-5" /> Share My Screen
           </button>
         ) : (
-          <button
-            onClick={stopSharing}
-            className="flex items-center justify-center gap-2 bg-red-500 text-white font-bold py-3 px-8 rounded-xl hover:bg-red-600 transition-all"
-          >
-            <MonitorOff className="w-5 h-5" />
-            Stop Sharing
+          <button onClick={stopSharing}
+            className="flex items-center justify-center gap-2 bg-red-500 text-white font-bold py-3 px-8 rounded-xl hover:bg-red-600 transition-all">
+            <MonitorOff className="w-5 h-5" /> Stop Sharing
           </button>
         )}
-
         {!isSharing && status === 'idle' && (
-          <button
-            onClick={joinParty}
-            className="flex items-center justify-center gap-2 bg-white border-2 border-purple-300 text-purple-600 font-bold py-3 px-8 rounded-xl hover:bg-purple-50 transition-all"
-          >
-            <Users className="w-5 h-5" />
-            Join Partner's Screen
+          <button onClick={joinParty}
+            className="flex items-center justify-center gap-2 bg-white border-2 border-purple-300 text-purple-600 font-bold py-3 px-8 rounded-xl hover:bg-purple-50 transition-all">
+            <Users className="w-5 h-5" /> Join Partner's Screen
           </button>
         )}
       </div>

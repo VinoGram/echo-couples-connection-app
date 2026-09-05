@@ -115,9 +115,10 @@ module.exports = (io) => {
       }
     });
 
-    // Watch party signaling
+    // Watch party signaling — use a fixed shared room name per socket pair
     socket.on('watch-party:join', () => {
-      const room = `watch_${[socket.userId].sort().join('_')}`;
+      // Use a generic shared room so any two authenticated users can pair up
+      const room = 'watch-party-room';
       socket.join(room);
       socket.watchRoom = room;
       socket.to(room).emit('watch-party:peer-joined');

@@ -1,107 +1,78 @@
 import { io, Socket } from 'socket.io-client'
 
 class SocketManager {
-  private socket: Socket | null = null
+  private _socket: Socket | null = null
   private token: string | null = null
 
   connect(token: string) {
-    if (this.socket?.connected) {
-      return this.socket
-    }
+    if (this._socket?.connected) return this._socket
 
     this.token = token
     const socketUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000'
-    this.socket = io(socketUrl, {
-      auth: { token }
-    })
+    this._socket = io(socketUrl, { auth: { token } })
 
-    this.socket.on('connect', () => {
-      console.log('Connected to chat server')
-    })
+    this._socket.on('connect', () => console.log('Connected to chat server'))
+    this._socket.on('disconnect', () => console.log('Disconnected from chat server'))
+    this._socket.on('connect_error', (error) => console.error('Connection error:', error))
 
-    this.socket.on('disconnect', () => {
-      console.log('Disconnected from chat server')
-    })
-
-    this.socket.on('connect_error', (error) => {
-      console.error('Connection error:', error)
-    })
-
-    return this.socket
+    return this._socket
   }
 
   disconnect() {
-    if (this.socket) {
-      this.socket.disconnect()
-      this.socket = null
+    if (this._socket) {
+      this._socket.disconnect()
+      this._socket = null
     }
   }
 
   sendMessage(content: string) {
-    if (this.socket?.connected) {
-      console.log('Sending message:', content)
-      this.socket.emit('send_message', { content })
-    } else {
-      console.log('Socket not connected, cannot send message')
+    if (this._socket?.connected) {
+      this._socket.emit('send_message', { content })
     }
   }
 
   startTyping() {
-    if (this.socket?.connected) {
-      this.socket.emit('typing_start')
-    }
+    if (this._socket?.connected) this._socket.emit('typing_start')
   }
 
   stopTyping() {
-    if (this.socket?.connected) {
-      this.socket.emit('typing_stop')
-    }
+    if (this._socket?.connected) this._socket.emit('typing_stop')
   }
 
   onNewMessage(callback: (message: any) => void) {
-    if (this.socket) {
-      this.socket.on('new_message', (message) => {
-        console.log('Received new message:', message)
-        callback(message)
-      })
-    }
+    this._socket?.on('new_message', callback)
   }
 
   onPartnerTyping(callback: (data: any) => void) {
-    if (this.socket) {
-      this.socket.on('partner_typing', callback)
-    }
+    this._socket?.on('partner_typing', callback)
   }
 
   onPartnerStoppedTyping(callback: (data: any) => void) {
-    if (this.socket) {
-      this.socket.on('partner_stopped_typing', callback)
-    }
+    this._socket?.on('partner_stopped_typing', callback)
   }
 
   notifyMessagesRead() {
-    if (this.socket?.connected) {
-      this.socket.emit('messages_read')
-    }
+    if (this._socket?.connected) this._socket.emit('messages_read')
   }
 
   onMessagesRead(callback: (data: any) => void) {
-    if (this.socket) {
-      this.socket.on('messages_marked_read', callback)
-    }
+    this._socket?.on('messages_marked_read', callback)
   }
 
   offAllListeners() {
-    if (this.socket) {
-      this.socket.off('new_message')
-      this.socket.off('partner_typing')
-      this.socket.off('partner_stopped_typing')
-      this.socket.off('messages_marked_read')
-    }
+    this._socket?.off('new_message')
+    this._socket?.off('partner_typing')
+    this._socket?.off('partner_stopped_typing')
+    this._socket?.off('messages_marked_read')
   }
 
   get connected() {
-    return this.socket?.connected || false
+    return this._socket?.connected || false
+  }
+
+  // Public getter so WatchParty and other components can access the socket directly
+  get socket() {
+    return this._socket
   }
 }
 
