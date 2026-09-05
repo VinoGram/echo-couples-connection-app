@@ -7,9 +7,10 @@ import { ExerciseHub } from "./ExerciseHub";
 import { QuizHub } from "./QuizHub";
 import { NotificationSettings } from "./NotificationSettings";
 import { ActivityHistory } from "./ActivityHistory";
+import { WatchParty } from "./WatchParty";
 import { api } from "../lib/api";
 import { socketManager } from "../lib/socket";
-import { MessageCircle, MessageSquare, BookOpen, Gamepad2, Heart, BarChart3, Flame, Star, Zap, Users, Settings, Trophy, Award, Crown, History } from "lucide-react";
+import { MessageCircle, MessageSquare, BookOpen, Gamepad2, Heart, BarChart3, Flame, Star, Zap, Users, Settings, Trophy, Award, Crown, History, Monitor } from "lucide-react";
 
 interface DashboardProps {
   couple: any;
@@ -18,7 +19,7 @@ interface DashboardProps {
 }
 
 export function Dashboard({ couple, onCoupleSetup, setCouple }: DashboardProps) {
-  const [activeTab, setActiveTab] = useState<"daily" | "chat" | "questions" | "games" | "exercises" | "quizzes" | "awards" | "history" | "settings">("daily");
+  const [activeTab, setActiveTab] = useState<"daily" | "chat" | "questions" | "games" | "exercises" | "quizzes" | "awards" | "history" | "watch" | "settings">("daily");
   const [todaysQuestion, setTodaysQuestion] = useState(null);
   const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
   const [unreadMessages, setUnreadMessages] = useState(0);
@@ -130,6 +131,7 @@ export function Dashboard({ couple, onCoupleSetup, setCouple }: DashboardProps) 
     { id: "quizzes", label: "Quizzes", icon: BarChart3 },
     { id: "awards", label: "Awards", icon: Star },
     { id: "history", label: "History", icon: History },
+    { id: "watch", label: "Watch", icon: Monitor },
     { id: "settings", label: "Settings", icon: Settings },
   ];
 
@@ -445,6 +447,7 @@ export function Dashboard({ couple, onCoupleSetup, setCouple }: DashboardProps) 
             {activeTab === "quizzes" && <QuizHub onQuizCompleted={refreshStats} />}
             {activeTab === "awards" && <AwardsSection />}
             {activeTab === "history" && <ActivityHistory />}
+            {activeTab === "watch" && <WatchParty />}
             {activeTab === "settings" && <NotificationSettings />}
           </div>
         </div>

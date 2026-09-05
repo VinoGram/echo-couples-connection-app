@@ -114,5 +114,27 @@ module.exports = (io) => {
         socket.to(socket.gameId).emit('player_left', { playerId: socket.userId });
       }
     });
+
+    // Watch party signaling
+    socket.on('watch-party:join', () => {
+      const room = `watch_${[socket.userId].sort().join('_')}`;
+      socket.join(room);
+      socket.watchRoom = room;
+      socket.to(room).emit('watch-party:peer-joined');
+    });
+
+    socket.on('watch-party:signal', (data) => {
+      if (socket.watchRoom) {
+        socket.to(socket.watchRoom).emit('watch-party:signal', data);
+      }
+    });
+
+    socket.on('watch-party:leave', () => {
+      if (socket.watchRoom) {
+        socket.to(socket.watchRoom).emit('watch-party:peer-left');
+        socket.leave(socket.watchRoom);
+        socket.watchRoom = null;
+      }
+    });
   });
 };
