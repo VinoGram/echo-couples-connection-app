@@ -115,33 +115,41 @@ module.exports = (io) => {
       }
     });
 
-    // Watch party signaling
-    // Each user hosts a room named after their own userId.
-    // Sharer joins their own room and waits.
-    // Joiner sends { hostId } — server puts joiner in host's room and fires peer-joined.
-    socket.on('watch-party:join', ({ hostId } = {}) => {
-      if (hostId && hostId !== socket.userId) {
-        // This socket is the joiner — enter the host's room
-        const room = `watch-party:${hostId}`;
+    // Watch party — deterministic room from sorted partner IDs, no invite code needed
+    socket.on('watch-party:join', async ({ role } = {}) => {
+      try {
+        const User = require('../models/User');
+        const user = await User.findByPk(socket.userId, { attributes: ['id', 'partnerId'] });
+        if (!user?.partnerId) {
+          socket.emit('watch-party:error', { message: 'No partner linked to your account yet.' });
+          return;
+        }
+        const ids = [socket.userId, user.partnerId].sort();
+        const room = `couple_${ids[0]}_${ids[1]}`;
         socket.join(room);
         socket.watchRoom = room;
-        socket.to(room).emit('watch-party:peer-joined');
-        console.log(`[watch] joiner ${socket.userId} joined host room ${room}`);
-      } else {
-        // This socket is the sharer — create their own room
-        const room = `watch-party:${socket.userId}`;
-        socket.join(room);
-        socket.watchRoom = room;
-        // Emit the hostId back so the frontend can share it with the partner
-        socket.emit('watch-party:room-ready', { hostId: socket.userId });
-        console.log(`[watch] sharer ${socket.userId} opened room ${room}`);
+        socket.watchRole = role || 'viewer';
+        console.log(`[watch] ${socket.userId} joined ${room} as ${socket.watchRole}`);
+
+        // Tell the other partner (if already connected) that sharing started
+        if (role === 'sharer') {
+          socket.to(`user_${user.partnerId}`).emit('watch-party:partner-sharing');
+        }
+        // If both are now in the room, trigger offer from sharer
+        const roomSockets = await io.in(room).fetchSockets();
+        const sharer = roomSockets.find(s => s.watchRole === 'sharer');
+        const viewer = roomSockets.find(s => s.watchRole === 'viewer');
+        if (sharer && viewer) {
+          // Tell the sharer to create the offer
+          sharer.emit('watch-party:start-offer');
+        }
+      } catch (err) {
+        console.error('[watch] join error', err);
       }
     });
 
     socket.on('watch-party:signal', (data) => {
-      if (socket.watchRoom) {
-        socket.to(socket.watchRoom).emit('watch-party:signal', data);
-      }
+      if (socket.watchRoom) socket.to(socket.watchRoom).emit('watch-party:signal', data);
     });
 
     socket.on('watch-party:leave', () => {
@@ -149,6 +157,7 @@ module.exports = (io) => {
         socket.to(socket.watchRoom).emit('watch-party:peer-left');
         socket.leave(socket.watchRoom);
         socket.watchRoom = null;
+        socket.watchRole = null;
       }
     });
   });
