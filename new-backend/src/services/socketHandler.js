@@ -115,22 +115,26 @@ module.exports = (io) => {
       }
     });
 
-    // Watch party signaling — room scoped to the couple
-    socket.on('watch-party:join', async () => {
-      try {
-        const User = require('../models/User');
-        const user = await User.findByPk(socket.userId, { attributes: ['partnerId'] });
-        const partnerId = user?.partnerId;
-        // Fall back to a per-user room if no partner linked yet
-        const ids = partnerId
-          ? [socket.userId, partnerId].sort()
-          : [socket.userId];
-        const room = `watch-party:${ids.join('_')}`;
+    // Watch party signaling
+    // Each user hosts a room named after their own userId.
+    // Sharer joins their own room and waits.
+    // Joiner sends { hostId } — server puts joiner in host's room and fires peer-joined.
+    socket.on('watch-party:join', ({ hostId } = {}) => {
+      if (hostId && hostId !== socket.userId) {
+        // This socket is the joiner — enter the host's room
+        const room = `watch-party:${hostId}`;
         socket.join(room);
         socket.watchRoom = room;
         socket.to(room).emit('watch-party:peer-joined');
-      } catch (err) {
-        console.error('watch-party:join error', err);
+        console.log(`[watch] joiner ${socket.userId} joined host room ${room}`);
+      } else {
+        // This socket is the sharer — create their own room
+        const room = `watch-party:${socket.userId}`;
+        socket.join(room);
+        socket.watchRoom = room;
+        // Emit the hostId back so the frontend can share it with the partner
+        socket.emit('watch-party:room-ready', { hostId: socket.userId });
+        console.log(`[watch] sharer ${socket.userId} opened room ${room}`);
       }
     });
 
