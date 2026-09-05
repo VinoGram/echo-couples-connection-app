@@ -91,32 +91,36 @@ export function WatchParty() {
     const attach = () => {
       const s = socketManager.socket
       if (!s) return
-      s.off('watch-party:peer-joined',  handlePeerJoined)
-      s.off('watch-party:signal',       handleSignal)
-      s.off('watch-party:peer-left',    handlePeerLeft)
-      s.off('watch-party:room-ready')
-      s.on('watch-party:peer-joined',   handlePeerJoined)
-      s.on('watch-party:signal',        handleSignal)
-      s.on('watch-party:peer-left',     handlePeerLeft)
-      s.on('watch-party:room-ready',    ({ hostId: id }: { hostId: string }) => {
-        console.log('[watch] room-ready, hostId=', id)
-        setHostId(id)
-      })
+      s.off('watch-party:peer-joined', handlePeerJoined)
+      s.off('watch-party:signal',      handleSignal)
+      s.off('watch-party:peer-left',   handlePeerLeft)
+      s.on('watch-party:peer-joined',  handlePeerJoined)
+      s.on('watch-party:signal',       handleSignal)
+      s.on('watch-party:peer-left',    handlePeerLeft)
     }
-
     attach()
     socketManager.socket?.on('connect', attach)
-
     return () => {
       const s = socketManager.socket
       s?.off('connect', attach)
-      s?.off('watch-party:peer-joined',  handlePeerJoined)
-      s?.off('watch-party:signal',       handleSignal)
-      s?.off('watch-party:peer-left',    handlePeerLeft)
-      s?.off('watch-party:room-ready')
+      s?.off('watch-party:peer-joined', handlePeerJoined)
+      s?.off('watch-party:signal',      handleSignal)
+      s?.off('watch-party:peer-left',   handlePeerLeft)
       peerRef.current?.close()
     }
   }, [handlePeerJoined, handleSignal, handlePeerLeft])
+
+  // Separate stable effect for room-ready so setHostId is never stale
+  useEffect(() => {
+    const s = socketManager.socket
+    if (!s) return
+    const onRoomReady = ({ hostId: id }: { hostId: string }) => {
+      console.log('[watch] room-ready, hostId=', id)
+      setHostId(id)
+    }
+    s.on('watch-party:room-ready', onRoomReady)
+    return () => { s.off('watch-party:room-ready', onRoomReady) }
+  }, [])
 
   const startSharing = async () => {
     try {
@@ -126,6 +130,16 @@ export function WatchParty() {
       stream.getVideoTracks()[0].onended = stopSharing
 
       socketManager.socket?.emit('watch-party:join', {})   // no hostId = I am the host
+
+      // Decode userId from JWT immediately — no need to wait for socket event
+      const token = sessionStorage.getItem('auth_token')
+      if (token) {
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]))
+          setHostId(payload.userId)
+        } catch {}
+      }
+
       setIsSharing(true)
       setStatus('waiting')
       toast.success('Screen sharing started — share the code with your partner')
