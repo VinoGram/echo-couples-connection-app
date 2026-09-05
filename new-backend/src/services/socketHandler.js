@@ -115,13 +115,23 @@ module.exports = (io) => {
       }
     });
 
-    // Watch party signaling — use a fixed shared room name per socket pair
-    socket.on('watch-party:join', () => {
-      // Use a generic shared room so any two authenticated users can pair up
-      const room = 'watch-party-room';
-      socket.join(room);
-      socket.watchRoom = room;
-      socket.to(room).emit('watch-party:peer-joined');
+    // Watch party signaling — room scoped to the couple
+    socket.on('watch-party:join', async () => {
+      try {
+        const User = require('../models/User');
+        const user = await User.findByPk(socket.userId, { attributes: ['partnerId'] });
+        const partnerId = user?.partnerId;
+        // Fall back to a per-user room if no partner linked yet
+        const ids = partnerId
+          ? [socket.userId, partnerId].sort()
+          : [socket.userId];
+        const room = `watch-party:${ids.join('_')}`;
+        socket.join(room);
+        socket.watchRoom = room;
+        socket.to(room).emit('watch-party:peer-joined');
+      } catch (err) {
+        console.error('watch-party:join error', err);
+      }
     });
 
     socket.on('watch-party:signal', (data) => {

@@ -68,6 +68,10 @@ export function WatchParty() {
     const peer = peerRef.current
 
     if (signal.type === 'offer') {
+      // Attach local tracks before answering (if this side is also sharing)
+      streamRef.current?.getTracks().forEach(track =>
+        peer.addTrack(track, streamRef.current!)
+      )
       await peer.setRemoteDescription(new RTCSessionDescription(signal))
       const answer = await peer.createAnswer()
       await peer.setLocalDescription(answer)
@@ -88,19 +92,28 @@ export function WatchParty() {
     toast.info('Partner disconnected')
   }, [])
 
-  // --- register socket listeners ---
+  // --- register socket listeners (re-run if socket connects after mount) ---
   useEffect(() => {
-    const socket = socketManager.socket
-    if (!socket) return
-
-    socket.on('watch-party:peer-joined', handlePeerJoined)
-    socket.on('watch-party:signal',      handleSignal)
-    socket.on('watch-party:peer-left',   handlePeerLeft)
-
-    return () => {
+    const attach = () => {
+      const socket = socketManager.socket
+      if (!socket) return
       socket.off('watch-party:peer-joined', handlePeerJoined)
       socket.off('watch-party:signal',      handleSignal)
       socket.off('watch-party:peer-left',   handlePeerLeft)
+      socket.on('watch-party:peer-joined',  handlePeerJoined)
+      socket.on('watch-party:signal',       handleSignal)
+      socket.on('watch-party:peer-left',    handlePeerLeft)
+    }
+
+    attach()
+    socketManager.socket?.on('connect', attach)
+
+    return () => {
+      const socket = socketManager.socket
+      socket?.off('connect', attach)
+      socket?.off('watch-party:peer-joined', handlePeerJoined)
+      socket?.off('watch-party:signal',      handleSignal)
+      socket?.off('watch-party:peer-left',   handlePeerLeft)
       peerRef.current?.close()
     }
   }, [handlePeerJoined, handleSignal, handlePeerLeft])
