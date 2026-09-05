@@ -151,7 +151,7 @@ export function WatchParty() {
     if (!code) { toast.error('Enter the code your partner shared'); return }
     socketManager.socket?.emit('watch-party:join', { hostId: code })
     setStatus('waiting')
-    toast.info('Joining partner's room…')
+    toast.info("Joining partner's room…")
   }
 
   const copyCode = () => {
