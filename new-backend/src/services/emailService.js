@@ -243,6 +243,38 @@ class EmailService {
     }
   }
 
+  async sendOTPEmail(email, username, otp) {
+    const mailOptions = {
+      from: `"Echo App" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'Your Password Reset Code - Echo App 🔐',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #ec4899, #8b5cf6); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="color: white; margin: 0; font-size: 28px;">Password Reset 🔐</h1>
+          </div>
+          <div style="padding: 30px; background: #f9fafb; border-radius: 0 0 10px 10px;">
+            <h2 style="color: #374151; margin-top: 0;">Hi ${username}!</h2>
+            <p style="color: #6b7280; font-size: 16px; line-height: 1.6;">
+              Use the code below to reset your password. It expires in <strong>10 minutes</strong>.
+            </p>
+            <div style="background: white; padding: 25px; border-radius: 8px; margin: 20px 0; text-align: center; border: 2px dashed #ec4899;">
+              <p style="color: #6b7280; margin: 0 0 8px 0; font-size: 14px;">Your OTP Code</p>
+              <h2 style="color: #ec4899; margin: 0; font-size: 36px; letter-spacing: 8px; font-family: monospace;">${otp}</h2>
+            </div>
+            <p style="color: #dc2626; font-size: 14px;">
+              ⚠️ Never share this code with anyone. Echo will never ask for it.
+            </p>
+            <p style="color: #9ca3af; font-size: 13px;">
+              If you didn't request a password reset, you can safely ignore this email.
+            </p>
+          </div>
+        </div>
+      `
+    };
+    return this.transporter.sendMail(mailOptions);
+  }
+
   async sendActivityCompletionNotification(email, username, partnerName, activityType, activityName) {
     const activityTypeNames = {
       'game': 'Game',

@@ -156,38 +156,19 @@ router.post('/forgot-password', async (req, res) => {
       expiresAt: otpExpiry
     });
     
-    console.log('OTP stored in OTP table:', { email, otp, expiry: otpExpiry.toISOString() });
+    console.log('OTP stored in OTP table:', { email, expiry: otpExpiry.toISOString() });
+
+    // Send OTP via email
+    const emailService = require('../services/emailService');
+    await emailService.sendOTPEmail(email, user.username, otp);
     
     res.json({ 
-      message: 'OTP generated successfully',
-      otp: otp,
+      message: 'OTP sent to your email address',
       expiresIn: '10 minutes'
     });
   } catch (error) {
     console.error('Forgot password error:', error);
     res.status(500).json({ error: error.message });
-  }
-});
-
-// Debug endpoint to check OTP data
-router.post('/debug-otp', async (req, res) => {
-  try {
-    const { email } = req.body;
-    const user = await User.findOne({ where: { email } });
-    if (!user) {
-      return res.json({ error: 'User not found' });
-    }
-    
-    const preferences = user.preferences || {};
-    res.json({
-      email,
-      hasOTP: !!preferences.resetOTP,
-      otp: preferences.resetOTP,
-      expiry: preferences.resetOTPExpiry,
-      isExpired: preferences.resetOTPExpiry ? new Date() > new Date(preferences.resetOTPExpiry) : null
-    });
-  } catch (error) {
-    res.json({ error: error.message });
   }
 });
 
